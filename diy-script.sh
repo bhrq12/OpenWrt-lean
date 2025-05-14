@@ -45,17 +45,17 @@ git clone --depth=1 https://github.com/fw876/helloworld package/luci-app-ssr-plu
 git clone --depth=1 https://github.com/jerrykuku/luci-app-vssr package/luci-app-vssr
 git clone --depth=1 https://github.com/jerrykuku/lua-maxminddb package/lua-maxminddb
 git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall package/openwrt-passwall
-svn export https://github.com/xiaorouji/openwrt-passwall/branches/luci/luci-app-passwall package/luci-app-passwall
-svn export https://github.com/xiaorouji/openwrt-passwall2/trunk/luci-app-passwall2 package/luci-app-passwall2
-svn export https://github.com/vernesong/OpenClash/trunk/luci-app-openclash package/luci-app-openclash
+git clone --depth=1 https://github.com/xiaorouji/openwrt-passwall.git package/luci-app-passwall
+git clone https://github.com/xiaorouji/openwrt-passwall2.git package/luci-app-passwall2
+git clone https://github.com/vernesong/OpenClash.git package/luci-app-openclash
 
 # Themes
 git clone --depth=1 -b 18.06 https://github.com/kiddin9/luci-theme-edge package/luci-theme-edge
 git clone --depth=1 -b 18.06 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
 git clone --depth=1 https://github.com/xiaoqingfengATGH/luci-theme-infinityfreedom package/luci-theme-infinityfreedom
-svn export https://github.com/haiibo/packages/trunk/luci-theme-atmaterial package/luci-theme-atmaterial
-svn export https://github.com/haiibo/packages/trunk/luci-theme-opentomcat package/luci-theme-opentomcat
+svn export https://github.com/haiibo/packages/tree/main/luci-theme-atmaterial package/luci-theme-atmaterial
+svn export https://github.com/haiibo/packages/tree/main/luci-theme-opentomcat package/luci-theme-opentomcat
 svn export https://github.com/haiibo/packages/trunk/luci-theme-netgear package/luci-theme-netgear
 
 # 更改 Argon 主题背景
@@ -76,23 +76,23 @@ git clone --depth=1 https://github.com/ximiTech/luci-app-msd_lite package/luci-a
 git clone --depth=1 https://github.com/ximiTech/msd_lite package/msd_lite
 
 # MosDNS
-svn export https://github.com/sbwml/luci-app-mosdns/trunk/luci-app-mosdns package/luci-app-mosdns
-svn export https://github.com/sbwml/luci-app-mosdns/trunk/mosdns package/mosdns
+svn export https://github.com/sbwml/luci-app-mosdns/tree/v5/luci-app-mosdns package/luci-app-mosdns
+svn export https://github.com/sbwml/luci-app-mosdns/tree/v5/mosdns package/mosdns
 
 # DDNS.to
-svn export https://github.com/linkease/nas-packages-luci/trunk/luci/luci-app-ddnsto package/luci-app-ddnsto
-svn export https://github.com/linkease/nas-packages/trunk/network/services/ddnsto package/ddnsto
+svn export https://github.com/linkease/nas-packages-luci/tree/main/luci/luci-app-ddnsto package/luci-app-ddnsto
+svn export https://github.com/linkease/nas-packages/tree/master/network/services/ddnsto package/ddnsto
 
 # Alist
-svn export https://github.com/sbwml/luci-app-alist/trunk/luci-app-alist package/luci-app-alist
-svn export https://github.com/sbwml/luci-app-alist/trunk/alist package/alist
+svn export https://github.com/sbwml/luci-app-alist/tree/main/luci-app-alist package/luci-app-alist
+svn export https://github.com/sbwml/luci-app-alist/tree/main/alist package/alist
 
 # iStore
-svn export https://github.com/linkease/istore-ui/trunk/app-store-ui package/app-store-ui
-svn export https://github.com/linkease/istore/trunk/luci package/luci-app-store
+svn export https://github.com/linkease/istore-ui/tree/main/app-store-ui package/app-store-ui
+svn export https://github.com/linkease/istore/tree/main/luci/luci-app-store package/luci-app-store
 
 # 在线用户
-svn export https://github.com/haiibo/packages/trunk/luci-app-onliner package/luci-app-onliner
+svn export https://github.com/haiibo/packages/tree/main/luci-app-onliner package/luci-app-onliner
 sed -i '$i uci set nlbwmon.@nlbwmon[0].refresh_interval=2s' package/lean/default-settings/files/zzz-default-settings
 sed -i '$i uci commit nlbwmon' package/lean/default-settings/files/zzz-default-settings
 chmod 755 package/luci-app-onliner/root/usr/share/onliner/setnlbw.sh
