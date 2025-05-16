@@ -16,7 +16,7 @@ on:
 env:
   SOURCE_URL: https://github.com/coolsnowwolf/lede
   SOURCE_BRANCH: master
-  CONFIG_FILE: configs/armv8-plus.config
+  CONFIG_FILE: configs/ap4220-plus.config
   DIY_SCRIPT: diy-script.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: arm64
@@ -24,7 +24,7 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: ROOTFS_PLUS
   OPENWRT_RELEASE: true
-  OPENWRT_TAG: ARMv8_PLUS
+  OPENWRT_TAG: AP4220_PLUS
   TZ: Asia/Shanghai
 
 jobs:
@@ -344,8 +344,8 @@ jobs:
         artifacts: ${{ env.FIRMWARE_PATH }}/*
         body: |
           **This is Temporary Firmware for Armvirt 64**
-          * 这是 ARMv8_PLUS 多功能版打包临时固件，不可直刷
-          直刷固件参见 Tag 名为 ARMv8_PLUS 的 Releases
+          * 这是 AP4220_PLUS 多功能版打包临时固件，不可直刷
+          直刷固件参见 Tag 名为 AP4220_PLUS 的 Releases
           当前使用版本:【编译前的最后一次[➦主源码](https://github.com/coolsnowwolf/lede)更新记录】
           ${{ env.VERSION_INFO }}
 
