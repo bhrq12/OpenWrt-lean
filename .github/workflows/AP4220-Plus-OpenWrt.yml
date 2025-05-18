@@ -14,8 +14,8 @@ on:
     - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/coolsnowwolf/lede
-  SOURCE_BRANCH: master
+  SOURCE_URL: https://github.com/bhrq12/lede.git
+  SOURCE_BRANCH: v2025.5.17
   CONFIG_FILE: configs/ap4220-plus-1.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
