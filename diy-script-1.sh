@@ -30,6 +30,7 @@
 # 添加额外插件
 git clone https://github.com/bhrq12/package.git package/mypackage
 git clone https://github.com/bhrq12/luci-app-baidupcs-web.git package/luci-app-baidupcs-web
+git clone https://github.com/fw876/helloworld.git package/helloworld
 
 # 更改 Argon 主题背景
 # cp -f $GITHUB_WORKSPACE/images/bg1.jpg package/luci-theme-argon/htdocs/luci-static/argon/img/bg1.jpg
