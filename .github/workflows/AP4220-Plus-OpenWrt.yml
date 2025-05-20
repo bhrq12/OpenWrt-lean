@@ -88,24 +88,61 @@ jobs:
           if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
             echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
           fi
-          
-      - name: 编译工具链（条件触发）
+            
+      - name: 安装软件源
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
           cd $OPENWRT_PATH
-          ./scripts/feeds update -a && ./scripts/feeds install -a
-          make tools/compile -j$(nproc) && make toolchain/compile -j$(nproc)
-          mksquashfs openwrt $TOOLCHAIN_IMAGE -comp zstd
-          echo $CURRENT_HASH > $TOOLCHAIN_IMAGE.hash
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+  
+      - name: 编译基础工具
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+        run: |
+          cd $OPENWRT_PATH
+          make defconfig
+          echo -e "$(nproc) thread compile"
+          make tools/compile -j$(nproc) || make tools/compile -j1 V=s
+  
+      - name: 编译完整工具链
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+        run: |
+          cd $OPENWRT_PATH
+          echo -e "$(nproc) thread compile"
+          make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+          rm -rf .config* dl bin
+  
+      - name: 生成工具链镜像
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+        run: |
+          cd workspace
+          mksquashfs openwrt $TOOLCHAIN_IMAGE -force-gid 1001 -force-uid 1001 -comp zstd
+          mkdir -p $GITHUB_WORKSPACE/output
+          split -d -b 1900M $TOOLCHAIN_IMAGE $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.img.
+          rm $TOOLCHAIN_IMAGE
+          echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.hash
+          ls -lh $GITHUB_WORKSPACE/output
+          
+      - name: 编译工具链
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+        uses: mknejp/delete-release-assets@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.TOOLCHAIN_TAG }}
+          assets: '${{ env.TOOLCHAIN_IMAGE }}.*'
+          fail-if-no-assets: false
+          fail-if-no-release: false
 
       - name: 发布工具链
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.TOOLCHAIN_TAG }}
+          name: Toolchain-Image
           allowUpdates: true
-          artifacts: "${{ env.TOOLCHAIN_IMAGE }},${{ env.TOOLCHAIN_IMAGE }}.hash"
+          tag: ${{ env.TOOLCHAIN_TAG }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: output/*
+          body: OpenWrt 工具链镜像文件
 
   Firmware_Base:
     needs: Toolchain
