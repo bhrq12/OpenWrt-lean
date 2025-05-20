@@ -80,10 +80,15 @@ jobs:
         id: hash
         run: |
           cd $OPENWRT_PATH
-          CURRENT_HASH=$(git log --pretty=tformat:"%H" -n1 tools toolchain)
-          CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.hash 2>/dev/null)
-          [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ] && echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
-
+          export CURRENT_HASH=$(git log --pretty=tformat:"%H" -n1 tools toolchain)
+          echo "CURRENT_HASH=$CURRENT_HASH" >> $GITHUB_ENV
+          echo "CURRENT_HASH is $CURRENT_HASH"
+          export CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.hash)
+          echo "CACHE_HASH is $CACHE_HASH"
+          if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
+            echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
+          fi
+          
       - name: 编译工具链（条件触发）
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
