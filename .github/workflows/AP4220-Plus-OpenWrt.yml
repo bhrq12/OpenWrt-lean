@@ -85,7 +85,11 @@ jobs:
           echo "CURRENT_HASH is $CURRENT_HASH"
           export CACHE_HASH=$(curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.hash || echo "")
           echo "CACHE_HASH is $CACHE_HASH"
-          if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
+          if [ -z "$CACHE_HASH" ]; then
+            echo "Toolchain hash file is missing. Rebuilding toolchain."
+            echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
+          elif [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
+            echo "Toolchain hash mismatch. Rebuilding toolchain."
             echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
           else
             echo "Toolchain is up to date."
