@@ -6,12 +6,12 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: X86_64 OpenWrt
+name: AP8220 Plus OpenWrt
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: 0 19 * * *
+  # schedule:
+  #   - cron: 0 19 * * *
 
 env:
   SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
