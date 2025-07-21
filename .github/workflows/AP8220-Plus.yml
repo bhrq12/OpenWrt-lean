@@ -14,15 +14,15 @@ on:
     - cron: 0 19 * * *
 
 env:
-  SOURCE_URL: https://github.com/coolsnowwolf/lede
-  SOURCE_BRANCH: master
-  CONFIG_FILE: configs/x86_64.config
-  DIY_SCRIPT: diy-script.sh
+  SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
+  SOURCE_BRANCH: main
+  CONFIG_FILE: configs/ap8220-plus.config
+  DIY_SCRIPT: diy-script-ap8220.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: amd64
   UPLOAD_BIN_DIR: false
   FIRMWARE_RELEASE: true
-  FIRMWARE_TAG: X86_64
+  FIRMWARE_TAG: ARM
   TZ: Asia/Shanghai
 
 jobs:
