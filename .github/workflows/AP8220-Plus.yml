@@ -68,6 +68,7 @@ jobs:
       id: clone
       run: |
         df -hT $GITHUB_WORKSPACE
+        cd $GITHUB_WORKSPACE
         git clone $SOURCE_URL -b $SOURCE_BRANCH workspace/openwrt
         cd workspace/openwrt
         echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
@@ -78,6 +79,7 @@ jobs:
 
     - name: Generate Toolchain Config
       run: |
+        cd $GITHUB_WORKSPACE
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
         echo "CONFIG_ALL=y" >> $OPENWRT_PATH/.config
         echo "CONFIG_ALL_NONSHARED=y" >> $OPENWRT_PATH/.config
@@ -248,6 +250,7 @@ jobs:
 
     - name: Prepare Toolchain Image
       run: |
+        cd $GITHUB_WORKSPACE
         mkdir -p workspace
         cd workspace
         for i in {0..9}
