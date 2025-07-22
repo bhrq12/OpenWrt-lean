@@ -29,19 +29,19 @@ sudo -E apt-get -qq install -y dns2socks tcping pdnsd-alt trojan || {
     echo "警告: 部分网络工具安装失败，可能需要手动处理"
 }
 
-# 自定义包安装示例
-if [ ! -d "custom-packages" ]; then
-    echo "正在克隆自定义包仓库..."
-    git clone --depth=1 https://github.com/example/custom-packages.git || {
-        echo "警告: 自定义包仓库克隆失败"
-        exit 0
-    }
-    pushd custom-packages
-    make -j$(nproc) && sudo make install || {
-        echo "警告: 自定义包编译安装失败"
-    }
-    popd
-fi
+# # 自定义包安装示例
+# if [ ! -d "custom-packages" ]; then
+#     echo "正在克隆自定义包仓库..."
+#     git clone --depth=1 https://github.com/example/custom-packages.git || {
+#         echo "警告: 自定义包仓库克隆失败"
+#         exit 0
+#     }
+#     pushd custom-packages
+#     make -j$(nproc) && sudo make install || {
+#         echo "警告: 自定义包编译安装失败"
+#     }
+#     popd
+# fi
 
 # 清理工作
 sudo -E apt-get -qq autoremove --purge
