@@ -345,36 +345,35 @@ jobs:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
     
-    - name: Organize Files
-      if: steps.generate.outputs.status == 'success'
-      run: |
-        echo "Organizing files in $OPENWRT_PATH..."
-        cd $OPENWRT_PATH/bin/targets/*/* || exit 1
-        echo "SHA256 checksums:"
-        cat sha256sums || echo "Warning: sha256sums not found."
-        echo "Saving build config..."
-        cp $OPENWRT_PATH/.config build.config || echo "Warning: Failed to copy .config."
-        echo "Packaging IPK files..."
-        mkdir -p packages
-        mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages/ 2>/dev/null || echo "No IPK files found."
-        if [ -d "packages" ]; then
-          tar -zcf Packages.tar.gz packages
-          rm -rf packages feeds.buildinfo version.buildinfo
-        fi
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-        echo "Files organized. Firmware path: $PWD"
-
-
     # - name: Organize Files
     #   if: steps.generate.outputs.status == 'success'
     #   run: |
-    #     cd $OPENWRT_PATH/bin/targets/*/*
-    #     cat sha256sums
-    #     cp $OPENWRT_PATH/.config build.config
-    #     mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages
-    #     tar -zcf Packages.tar.gz packages
-    #     rm -rf packages feeds.buildinfo version.buildinfo
+    #     echo "Organizing files in $OPENWRT_PATH..."
+    #     cd $OPENWRT_PATH/bin/targets/*/* || exit 1
+    #     echo "SHA256 checksums:"
+    #     cat sha256sums || echo "Warning: sha256sums not found."
+    #     echo "Saving build config..."
+    #     cp $OPENWRT_PATH/.config build.config || echo "Warning: Failed to copy .config."
+    #     echo "Packaging IPK files..."
+    #     mkdir -p packages
+    #     mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages/ 2>/dev/null || echo "No IPK files found."
+    #     if [ -d "packages" ]; then
+    #       tar -zcf Packages.tar.gz packages
+    #       rm -rf packages feeds.buildinfo version.buildinfo
+    #     fi
     #     echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
+    #     echo "Files organized. Firmware path: $PWD"
+
+    - name: Organize Files
+      if: steps.generate.outputs.status == 'success'
+      run: |
+        cd $OPENWRT_PATH/bin/targets/*/*
+        cat sha256sums
+        cp $OPENWRT_PATH/.config build.config
+        mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages
+        tar -zcf Packages.tar.gz packages
+        rm -rf packages feeds.buildinfo version.buildinfo
+        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
 
     - name: Upload Firmware To Artifact
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
