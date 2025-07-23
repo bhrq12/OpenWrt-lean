@@ -278,7 +278,10 @@ jobs:
 
     - name: Install Feeds
       run: |
+        [ -e fix_openwrt_deps.sh ] && mv fix_openwrt_deps.sh $OPENWRT_PATH/fix_openwrt_deps.sh
+        chmod +x $OPENWRT_PATH/fix_openwrt_deps.sh
         cd $OPENWRT_PATH
+        $OPENWRT_PATH/fix_openwrt_deps.sh
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
