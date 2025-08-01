@@ -28,9 +28,7 @@
 # rm -rf feeds/luci/applications/luci-app-serverchan
 
 # 添加额外插件
-git clone --depth=1 https://github.com/bhrq12/package.git package/pack
-git clone --depth=1 https://github.com/bhrq12/openwrt-shadowsocks.git package/shadowsocks
-git clone --depth=1 https://github.com/bhrq12/openwrt-dns2socks.git package/dns2socks
+git clone --depth=1 git clone https://github.com/bhrq12/openwrt-packages.git package/openwrt-packages
 
 
 ./scripts/feeds update -a
