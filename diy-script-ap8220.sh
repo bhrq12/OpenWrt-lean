@@ -29,6 +29,8 @@
 
 # 添加额外插件
 git clone --depth=1 https://github.com/bhrq12/package.git package/pack
+git clone --depth=1 https://github.com/bhrq12/openwrt-shadowsocks.git package/shadowsocks
+git clone --depth=1 https://github.com/bhrq12/openwrt-dns2socks.git package/dns2socks
 
 
 ./scripts/feeds update -a
