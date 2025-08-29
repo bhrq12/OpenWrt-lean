@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP4220 Plus OpenWrt
+name: AP4220 Plus OpenWrt 2
 
 on:
   workflow_dispatch:
