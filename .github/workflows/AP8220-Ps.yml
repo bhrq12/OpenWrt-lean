@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 Ps OpenWrt
+name: AP8220 Ps OpenWrt lede
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
   #   - cron: 0 19 * * *
 
 env:
-  SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
+  SOURCE_URL: https://github.com/bhrq12/lede.git
   SOURCE_BRANCH: main
   CONFIG_FILE: configs/ap8220-plus.config
   DIY_SCRIPT: diy-script-ap8220.sh
