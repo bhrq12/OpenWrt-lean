@@ -2,6 +2,9 @@ name: Build OpenWrt for ipq8071-ap8220 with Prebuilt Toolchain
 
 on:
   workflow_dispatch:
+  # 可选：定时触发（如每周日凌晨编译）
+  # schedule:
+    # - cron: '0 0 * * 0'
 
 env:
   SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
@@ -14,80 +17,173 @@ env:
   FIRMWARE_TAG: ipq8071-ap8220-128m
   OPENWRT_TAG: ipq8071-ap8220-128m
   UPLOAD_BIN_DIR: false
+  # 限制并行编译数（根据 runner 核心数调整）
+  MAKE_JOBS: 2
 
 jobs:
   Build:
     runs-on: ubuntu-22.04
+    outputs:
+      status: ${{ steps.build_fw.outputs.status }}
 
     steps:
     - name: Checkout Workflow Repo
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
     - name: Init Build Environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
+        # 清理冗余软件，加速更新
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android
         sudo -E apt-get -qq update
-        sudo -E apt-get -y install libfuse-dev btrfs-progs $(curl -fsSL is.gd/depends_ubuntu_2204)
+        # 安装必要依赖（补充缺失的工具如 fuse2fs、lz4）
+        sudo -E apt-get -y install \
+          libfuse-dev btrfs-progs fuse2fs lz4 \
+          $(curl -fsSL is.gd/depends_ubuntu_2204)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
+        # 显示系统信息，便于调试
+        echo "System info:"
+        nproc
+        free -h
+        df -h
 
-    - name: Download Prebuilt Toolchain
+    - name: Cache Prebuilt Toolchain
+      uses: actions/cache@v3
+      id: cache-toolchain
+      with:
+        path: workspace/${{ env.TOOLCHAIN_IMAGE }}.img
+        key: ${{ env.TOOLCHAIN_TAG }}-${{ env.TOOLCHAIN_IMAGE }}
+
+    - name: Download Prebuilt Toolchain (if not cached)
+      if: steps.cache-toolchain.outputs.cache-hit != 'true'
       run: |
         mkdir -p workspace
         cd workspace
-        for i in {0..9}
-        do
-          curl -fsL https://github.com/${{ github.repository }}/releases/download/${{ env.TOOLCHAIN_TAG }}/${{ env.TOOLCHAIN_IMAGE }}.img.0$i >> ${{ env.TOOLCHAIN_IMAGE }}.img || break
+        # 重试机制（最多 3 次）
+        for attempt in {1..3}; do
+          echo "Downloading toolchain (attempt $attempt)..."
+          for i in {0..9}; do
+            curl -fSL --retry 3 --retry-delay 5 \
+              "https://github.com/${{ github.repository }}/releases/download/${{ env.TOOLCHAIN_TAG }}/${{ env.TOOLCHAIN_IMAGE }}.img.0$i" \
+              >> "${{ env.TOOLCHAIN_IMAGE }}.img" || break
+          done
+          # 检查文件完整性（示例：假设工具链镜像至少 1GB）
+          if [ $(stat -c%s "${{ env.TOOLCHAIN_IMAGE }}.img") -gt 1073741824 ]; then
+            echo "Toolchain downloaded successfully."
+            break
+          else
+            rm -f "${{ env.TOOLCHAIN_IMAGE }}.img"
+            echo "Toolchain incomplete, retrying..."
+          fi
         done
-        mkdir openwrt-ro openwrt workdir overlay
-        sudo mount -o loop ${{ env.TOOLCHAIN_IMAGE }}.img openwrt-ro
-        sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
+        # 若仍失败则终止
+        if [ ! -f "${{ env.TOOLCHAIN_IMAGE }}.img" ]; then
+          echo "Failed to download toolchain after 3 attempts."
+          exit 1
+        fi
+
+    - name: Mount Prebuilt Toolchain
+      run: |
+        mkdir -p workspace/{openwrt-ro,openwrt,workdir,overlay}
+        cd workspace
+        # 使用 fuse2fs 非 root 挂载（更安全）
+        fuse2fs -o ro "${{ env.TOOLCHAIN_IMAGE }}.img" openwrt-ro || \
+          sudo mount -o loop,ro "${{ env.TOOLCHAIN_IMAGE }}.img" openwrt-ro
+        sudo mount -t overlay overlay \
+          -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
         echo "OPENWRT_PATH=$(pwd)/openwrt" >> $GITHUB_ENV
 
     - name: Clone Source Code
       run: |
-        cd workspace/openwrt
-        git pull || true
-        echo "VERSION_INFO=$(git show -s --date=short --format='Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H')" >> $GITHUB_ENV
+        cd ${{ env.OPENWRT_PATH }}
+        # 克隆指定分支，失败重试
+        if [ ! -d .git ]; then
+          git clone --depth 1 -b ${{ env.SOURCE_BRANCH }} ${{ env.SOURCE_URL }} . || \
+            { echo "Failed to clone source"; exit 1; }
+        else
+          git fetch --depth 1 origin ${{ env.SOURCE_BRANCH }} && git reset --hard FETCH_HEAD
+        fi
+        # 记录版本信息
+        echo "VERSION_INFO=$(git show -s --date=short --format='Author: %an<br/>Date: %cd<br/>Commit: %s<br/>Hash: %H')" >> $GITHUB_ENV
 
     - name: Prepare Config and Scripts
       run: |
         cd ${{ env.OPENWRT_PATH }}
-        [ -e $GITHUB_WORKSPACE/files ] && mv $GITHUB_WORKSPACE/files ${{ env.OPENWRT_PATH }}/files
-        [ -e $GITHUB_WORKSPACE/${{ env.CONFIG_FILE }} ] && cp $GITHUB_WORKSPACE/${{ env.CONFIG_FILE }} .config
-        [ -e $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }} ] && chmod +x $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }} && $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }}
-        chmod +x $GITHUB_WORKSPACE/scripts/*.sh || true
+        # 复制自定义文件
+        [ -d "$GITHUB_WORKSPACE/files" ] && cp -r "$GITHUB_WORKSPACE/files" .
+        # 复制配置文件
+        if [ -f "$GITHUB_WORKSPACE/${{ env.CONFIG_FILE }}" ]; then
+          cp "$GITHUB_WORKSPACE/${{ env.CONFIG_FILE }}" .config
+        else
+          echo "Config file ${{ env.CONFIG_FILE }} not found!"
+          exit 1
+        fi
+        # 执行自定义脚本
+        if [ -f "$GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }}" ]; then
+          chmod +x "$GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }}"
+          "$GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }}" || { echo "DIY script failed"; exit 1; }
+        fi
+        chmod +x "$GITHUB_WORKSPACE/scripts/"*.sh 2>/dev/null || true
 
-    - name: Install Feeds
+    - name: Cache DL Packages
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.OPENWRT_PATH }}/dl
+        key: ${{ env.SOURCE_BRANCH }}-dl-${{ github.sha }}
+        restore-keys: |
+          ${{ env.SOURCE_BRANCH }}-dl-
+
+    - name: Install Feeds and Update
       run: |
         cd ${{ env.OPENWRT_PATH }}
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+        ./scripts/feeds update -a || { echo "Feeds update failed"; exit 1; }
+        ./scripts/feeds install -a || { echo "Feeds install failed"; exit 1; }
 
-    - name: Download DL Package
+    - name: Download Dependencies
       run: |
         cd ${{ env.OPENWRT_PATH }}
         make defconfig
-        make download -j8
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
+        # 下载依赖，失败重试
+        for attempt in {1..3}; do
+          make download -j${{ env.MAKE_JOBS }} && break
+          echo "Download failed, retrying (attempt $attempt)..."
+          sleep 5
+        done
+        # 清理无效文件（小于 1KB 的可能是失败的下载）
+        find dl -size -1024c -delete
 
-    - name: Compile Firmware (ap8220 only)
+    - name: Compile Firmware
       id: build_fw
       run: |
         cd ${{ env.OPENWRT_PATH }}
+        # 创建默认配置文件目录
         mkdir -p files/etc/uci-defaults
-        make -j$(nproc) || make -j1 V=s
-        make package/install -j$(nproc) || make package/install -j1 V=s
-        make target/install -j$(nproc) || make target/install -j1 V=s
+        # 编译固件，首次失败则单线程输出详细日志
+        if ! make -j${{ env.MAKE_JOBS }}; then
+          echo "Compilation failed, retrying with verbose output..."
+          make -j1 V=s || { echo "Compilation failed"; exit 1; }
+        fi
         make checksum
+        # 记录输出路径和状态
         echo "status=success" >> $GITHUB_OUTPUT
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
         echo "FIRMWARE_PATH=$(find $PWD/bin/targets -type d -name ipq807x | head -n1)" >> $GITHUB_ENV
+
+    - name: Upload Compilation Logs (on failure)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          ${{ env.OPENWRT_PATH }}/build_dir/target-*/linux-*/.config
+          ${{ env.OPENWRT_PATH }}/logs/
+          ${{ env.OPENWRT_PATH }}/config.log
 
     - name: Upload Firmware to Release
       if: steps.build_fw.outputs.status == 'success'
@@ -99,21 +195,26 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: ${{ env.FIRMWARE_PATH }}/*
         body: |
-          **AP8220 (ipq8071) 固件包**
-          默认 IP：192.168.1.1 密码：password
-          适用于 AP8220 (ipq8071a)
+          **AP8220 (ipq8071) 固件包**  
+          默认 IP：192.168.1.1 | 密码：password  
+          适用设备：AP8220 (ipq8071a)  
           ${{ env.VERSION_INFO }}
 
-    - name: Compile All Packages (.ipk)
+    - name: Compile All IPK Packages
+      if: steps.build_fw.outputs.status == 'success'
       run: |
         cd ${{ env.OPENWRT_PATH }}
-        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        # 编译所有 IPK，忽略个别包错误
+        make package/compile -j${{ env.MAKE_JOBS }} IGNORE_ERRORS=1 || \
+          make package/compile -j1 V=s IGNORE_ERRORS=1
         make package/index
         echo "IPK_PATH=$(find $PWD/bin/packages -type d -name ipq807x | head -n1)" >> $GITHUB_ENV
 
-    - name: Pack and Upload All Packages to Release
+    - name: Upload IPK Packages to Release
+      if: steps.build_fw.outputs.status == 'success'
       run: |
-        cd ${{ env.OPENWRT_PATH }}/bin/packages
-        tar -czf ../../all_ipks_${{ env.FILE_DATE }}.tar.gz ./
-        cd ../../
-        gh release upload ${{ env.FIRMWARE_TAG }} all_ipks_${{ env.FILE_DATE }}.tar.gz --clobber
+        cd ${{ env.IPK_PATH }}/../..
+        tar -czf "all_ipks_${{ env.FILE_DATE }}.tar.gz" ./*
+        gh release upload ${{ env.FIRMWARE_TAG }} "all_ipks_${{ env.FILE_DATE }}.tar.gz" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
