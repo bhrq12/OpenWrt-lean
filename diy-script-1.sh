@@ -28,15 +28,15 @@
 # rm -rf feeds/luci/applications/luci-app-serverchan
 
 # 添加额外插件
-git clone https://github.com/bhrq12/package.git package/mypackage
+# git clone https://github.com/bhrq12/package.git package/mypackage
 # git clone https://github.com/bhrq12/luci-app-baidupcs-web.git package/luci-app-baidupcs-web
 # git clone https://github.com/fw876/helloworld.git package/helloworld
 
 # 添加kenzok8仓库（包含含常用的第三方网络工具仓库）
-git clone add https://github.com/kenzok8/openwrt-packages.git package/kenzok8
+# git clone add https://github.com/kenzok8/openwrt-packages.git package/kenzok8
 
 # （可选）添加helloworld仓库（补充更多依赖）
-git clone https://github.com/fw876/helloworld.git package/helloworld
+# git clone https://github.com/fw876/helloworld.git package/helloworld
 
 # 更改 Argon 主题背景
 # cp -f $GITHUB_WORKSPACE/images/bg1.jpg package/luci-theme-argon/htdocs/luci-static/argon/img/bg1.jpg
