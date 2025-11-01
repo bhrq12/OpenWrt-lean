@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 128m Plus OpenWrt
+name: ipq8071 ap8220 128m
 
 on:
   workflow_dispatch:
