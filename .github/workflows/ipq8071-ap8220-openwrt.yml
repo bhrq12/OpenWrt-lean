@@ -1,0 +1,119 @@
+name: Build OpenWrt for ipq8071-ap8220 with Prebuilt Toolchain
+
+on:
+  workflow_dispatch:
+
+env:
+  SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
+  SOURCE_BRANCH: v2025.10.31
+  CONFIG_FILE: configs/config-ap8220.config
+  DIY_SCRIPT: diy-script-1.sh
+  TOOLCHAIN_TAG: Toolchain
+  TOOLCHAIN_IMAGE: toolchain-openwrt-24.10-v2025.10.31-ipq807x-generic
+  TZ: Asia/Shanghai
+  FIRMWARE_TAG: ipq8071-ap8220-128m
+  OPENWRT_TAG: ipq8071-ap8220-128m
+  UPLOAD_BIN_DIR: false
+
+jobs:
+  Build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout Workflow Repo
+      uses: actions/checkout@v4
+
+    - name: Init Build Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android
+        sudo -E apt-get -qq update
+        sudo -E apt-get -y install libfuse-dev btrfs-progs $(curl -fsSL is.gd/depends_ubuntu_2204)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+
+    - name: Download Prebuilt Toolchain
+      run: |
+        mkdir -p workspace
+        cd workspace
+        for i in {0..9}
+        do
+          curl -fsL https://github.com/${{ github.repository }}/releases/download/${{ env.TOOLCHAIN_TAG }}/${{ env.TOOLCHAIN_IMAGE }}.img.0$i >> ${{ env.TOOLCHAIN_IMAGE }}.img || break
+        done
+        mkdir openwrt-ro openwrt workdir overlay
+        sudo mount -o loop ${{ env.TOOLCHAIN_IMAGE }}.img openwrt-ro
+        sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
+        echo "OPENWRT_PATH=$(pwd)/openwrt" >> $GITHUB_ENV
+
+    - name: Clone Source Code
+      run: |
+        cd workspace/openwrt
+        git pull || true
+        echo "VERSION_INFO=$(git show -s --date=short --format='Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H')" >> $GITHUB_ENV
+
+    - name: Prepare Config and Scripts
+      run: |
+        cd ${{ env.OPENWRT_PATH }}
+        [ -e $GITHUB_WORKSPACE/files ] && mv $GITHUB_WORKSPACE/files ${{ env.OPENWRT_PATH }}/files
+        [ -e $GITHUB_WORKSPACE/${{ env.CONFIG_FILE }} ] && cp $GITHUB_WORKSPACE/${{ env.CONFIG_FILE }} .config
+        [ -e $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }} ] && chmod +x $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }} && $GITHUB_WORKSPACE/${{ env.DIY_SCRIPT }}
+        chmod +x $GITHUB_WORKSPACE/scripts/*.sh || true
+
+    - name: Install Feeds
+      run: |
+        cd ${{ env.OPENWRT_PATH }}
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Download DL Package
+      run: |
+        cd ${{ env.OPENWRT_PATH }}
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile Firmware (ap8220 only)
+      id: build_fw
+      run: |
+        cd ${{ env.OPENWRT_PATH }}
+        mkdir -p files/etc/uci-defaults
+        make -j$(nproc) || make -j1 V=s
+        make package/install -j$(nproc) || make package/install -j1 V=s
+        make target/install -j$(nproc) || make target/install -j1 V=s
+        make checksum
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+        echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+        echo "FIRMWARE_PATH=$(find $PWD/bin/targets -type d -name ipq807x | head -n1)" >> $GITHUB_ENV
+
+    - name: Upload Firmware to Release
+      if: steps.build_fw.outputs.status == 'success'
+      uses: ncipollo/release-action@v1
+      with:
+        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+        allowUpdates: true
+        tag: ${{ env.FIRMWARE_TAG }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: ${{ env.FIRMWARE_PATH }}/*
+        body: |
+          **AP8220 (ipq8071) 固件包**
+          默认 IP：192.168.1.1 密码：password
+          适用于 AP8220 (ipq8071a)
+          ${{ env.VERSION_INFO }}
+
+    - name: Compile All Packages (.ipk)
+      run: |
+        cd ${{ env.OPENWRT_PATH }}
+        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        make package/index
+        echo "IPK_PATH=$(find $PWD/bin/packages -type d -name ipq807x | head -n1)" >> $GITHUB_ENV
+
+    - name: Pack and Upload All Packages to Release
+      run: |
+        cd ${{ env.OPENWRT_PATH }}/bin/packages
+        tar -czf ../../all_ipks_${{ env.FILE_DATE }}.tar.gz ./
+        cd ../../
+        gh release upload ${{ env.FIRMWARE_TAG }} all_ipks_${{ env.FILE_DATE }}.tar.gz --clobber
