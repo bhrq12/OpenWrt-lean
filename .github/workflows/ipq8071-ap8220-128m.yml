@@ -271,7 +271,7 @@ jobs:
     - name: Download DL Package
       run: |
         cd $OPENWRT_PATH
-        make defconfig
+        make qualcommax_ipq807x_DEVICE_alibaba_ap8220_defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -294,7 +294,6 @@ jobs:
         # cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
         make package/install -j$(nproc) || make package/install -j1 V=s
         make target/install -j$(nproc) || make target/install -j1 V=s
-        make -j$(nproc) || make -j1 || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
         make checksum
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
@@ -318,8 +317,6 @@ jobs:
     
     - name: Setup tmate session (SSH Debug)
       uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true   # 可选，只允许 workflow 触发者访问（更安全）
     
     - name: Organize Files
       if: steps.generate.outputs.status == 'success'
