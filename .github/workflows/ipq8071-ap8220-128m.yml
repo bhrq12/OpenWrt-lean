@@ -271,7 +271,7 @@ jobs:
     - name: Download DL Package
       run: |
         cd $OPENWRT_PATH
-        make qualcommax_ipq807x_DEVICE_alibaba_ap8220_defconfig
+        make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
