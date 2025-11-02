@@ -315,7 +315,12 @@ jobs:
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
-
+    
+    - name: Setup tmate session (SSH Debug)
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true   # 可选，只允许 workflow 触发者访问（更安全）
+    
     - name: Organize Files
       if: steps.generate.outputs.status == 'success'
       run: |
