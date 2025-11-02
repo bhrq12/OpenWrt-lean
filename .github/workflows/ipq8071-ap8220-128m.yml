@@ -323,7 +323,7 @@ jobs:
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
         cd $OPENWRT_PATH
-        mv -f ./bin/packages/*.* packages
+        mv -f ./bin/packages packages
         tar -zcf Packages.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
