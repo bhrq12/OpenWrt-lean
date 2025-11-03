@@ -267,6 +267,9 @@ jobs:
         $GITHUB_WORKSPACE/$DIY_SCRIPT
         $GITHUB_WORKSPACE/scripts/preset-clash-core.sh $CLASH_KERNEL
         $GITHUB_WORKSPACE/scripts/preset-terminal-tools.sh
+    
+    - name: Setup tmate session (SSH Debug)
+      uses: mxschmitt/action-tmate@v3
 
     - name: Download DL Package
       run: |
@@ -314,9 +317,6 @@ jobs:
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
-    
-    - name: Setup tmate session (SSH Debug)
-      uses: mxschmitt/action-tmate@v3
     
     - name: Organize Files
       if: steps.generate.outputs.status == 'success'
