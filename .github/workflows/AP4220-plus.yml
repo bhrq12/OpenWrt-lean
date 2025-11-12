@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: ipq8071 ap8220 128m
+name: AP4220 PLUS OPENWRT LEDE
 
 on:
   workflow_dispatch:
