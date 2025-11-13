@@ -14,8 +14,8 @@ on:
   #   - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
-  SOURCE_BRANCH: v2025.10.31
+  SOURCE_URL: https://github.com/coolsnowwolf/lede.git
+  SOURCE_BRANCH: master
   CONFIG_FILE: configs/config-ap8220.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
@@ -24,7 +24,7 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: ROOTFS_PLUS
   OPENWRT_RELEASE: true
-  OPENWRT_TAG: AP8220_128m_PLUS
+  OPENWRT_TAG: AP8220_128m_PLUS_lede
   TZ: Asia/Shanghai
 
 jobs:
