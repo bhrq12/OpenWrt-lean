@@ -280,18 +280,6 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Setup Rust
-      run: |
-        rustup default stable
-        rustup target add aarch64-unknown-linux-musl
-    
-    - name: Build OpenWrt (skip rust host build)
-      run: |
-        echo "CONFIG_PACKAGE_rust=n" >> .config
-        echo "CONFIG_PACKAGE_shadowsocks-rust=y" >> .config
-        make defconfig
-        make -j$(nproc) package/helloworld/shadowsocks-rust/compile
-
     - name: Compile Packages
       run: |
         cd $OPENWRT_PATH
