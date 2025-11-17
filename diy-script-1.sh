@@ -8,7 +8,7 @@
 #===============================================
 
 # 修改默认IP
-# sed -i 's/192.168.1.1/10.0.0.1/g' package/base-files/files/bin/config_generate
+sed -i 's/192.168.1.1/11.1.1.1/g' package/base-files/files/bin/config_generate
 
 # 更改默认 Shell 为 zsh
 # sed -i 's/\/bin\/ash/\/usr\/bin\/zsh/g' package/base-files/files/etc/passwd
@@ -34,10 +34,10 @@ git clone https://github.com/bhrq12/luci-app-baidupcs-web.git package/luci-app-b
 git clone https://github.com/fw876/helloworld.git package/helloworld
 
 # 添加kenzok8仓库（包含含常用的第三方网络工具仓库）
-git clone add https://github.com/kenzok8/openwrt-packages.git package/kenzok8
+# git clone add https://github.com/kenzok8/openwrt-packages.git package/kenzok8
 
 # （可选）添加helloworld仓库（补充更多依赖）
-git clone https://github.com/fw876/helloworld.git package/helloworld
+# git clone https://github.com/fw876/helloworld.git package/helloworld
 
 # 更改 Argon 主题背景
 # cp -f $GITHUB_WORKSPACE/images/bg1.jpg package/luci-theme-argon/htdocs/luci-static/argon/img/bg1.jpg
