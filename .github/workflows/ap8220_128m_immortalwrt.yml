@@ -16,7 +16,7 @@ on:
 env:
   SOURCE_URL: https://github.com/VIKINGYFY/immortalwrt.git
   SOURCE_BRANCH: main
-  CONFIG_FILE: configs/immortalwrt-ap8220-128m.yml
+  CONFIG_FILE: configs/immortalwrt-ap8220-128m.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain_immortalwrt
   CLASH_KERNEL: arm64
