@@ -26,7 +26,6 @@ env:
   FIRMWARE_TAG: ROOTFS_PLUS                                 # 固件发布的 Release 标签名
   OPENWRT_RELEASE: true                                     # （保留字段，当前未实际使用）
   OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt                 # （保留字段）
-  WRT_PACKAGE: ${{inputs.PACKAGE}}                          # 插件调整
   TZ: Asia/Shanghai                                         # 设置时区为上海
 
 # 定义两个 Job：先构建工具链（Toolchain），再构建固件（Build）
@@ -215,6 +214,19 @@ jobs:
       TOOLCHAIN_IMAGE: ${{ needs.Toolchain.outputs.TOOLCHAIN_IMAGE }}
 
     steps:
+    
+    # 👇【新增】第一步：验证 PACKAGE 是否为空
+    - name: Validate PACKAGE input
+      run: |
+        PKG="${{ github.event.inputs.PACKAGE }}"
+        if [ -z "$PKG" ]; then
+          echo "❌ 错误：PACKAGE 参数不能为空！"
+          echo "请在手动触发时填写要编译的软件包名称（例如：luci-app-openclash）"
+          echo "多个包请用逗号分隔，如：luci-app-openclash,luci-theme-argon"
+          exit 1
+        fi
+        echo "✅ 将编译软件包: $PKG"
+    
     # 1. 显示服务器硬件信息（提醒用户注意资源限制）
     - name: Check Server Performance
       run: |
