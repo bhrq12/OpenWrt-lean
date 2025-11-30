@@ -1,0 +1,421 @@
+#===============================================
+# 说明：构建 OpenWrt 固件（针对 ipq8071 平台的 AP8220 设备，128MB 内存）
+# 文件名：build-openwrt.yml
+# 许可证：MIT
+# 作者：P3TERX（基于其模板修改）
+# 源码地址：https://github.com/P3TERX
+#===============================================
+
+# 工作流名称，在 GitHub Actions 页面中显示
+name: ipq8071 ap8220 128m
+
+# 触发条件
+on:
+  workflow_dispatch:        # 允许在 GitHub 界面手动触发
+  # schedule:               # 定时自动构建（当前已注释，不启用）
+  #   - cron: 0 20 * * *    # 每天 UTC 时间 20:00 执行（即北京时间次日 04:00）
+
+# 全局环境变量（所有 Job 均可使用）
+env:
+  SOURCE_URL: https://github.com/bhrq12/immortalwrt.git     # OpenWrt 源码仓库地址（ImmortalWrt）
+  SOURCE_BRANCH: main                                       # 使用的源码分支
+  CONFIG_FILE: configs/config-ap8220.config                 # 自定义设备配置文件路径
+  DIY_SCRIPT: diy-script-1.sh                               # 自定义脚本（用于添加插件、修改默认设置等）
+  TOOLCHAIN_TAG: Toolchain                                  # 工具链缓存所用的 Release 标签
+  CLASH_KERNEL: arm64                                       # Clash 内核架构（用于预置）
+  UPLOAD_BIN_DIR: false                                     # 是否上传整个 bin 目录（调试用，通常设为 false）
+  FIRMWARE_RELEASE: true                                    # 是否将最终固件发布到 GitHub Release
+  FIRMWARE_TAG: ROOTFS_PLUS                                 # 固件发布的 Release 标签名
+  OPENWRT_RELEASE: true                                     # （保留字段，当前未实际使用）
+  OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt                 # （保留字段）
+  TZ: Asia/Shanghai                                         # 设置时区为上海
+
+# 定义两个 Job：先构建工具链（Toolchain），再构建固件（Build）
+jobs:
+
+  # =============== 第一阶段：构建并缓存交叉编译工具链 ===============
+  Toolchain:
+    runs-on: ubuntu-22.04  # 使用 Ubuntu 22.04 虚拟机
+
+    # 定义输出变量，供后续 Build Job 使用
+    outputs:
+      OPENWRT_PATH: ${{ steps.clone.outputs.OPENWRT_PATH }}
+      VERSION_INFO: ${{ steps.clone.outputs.VERSION_INFO }}
+      CURRENT_BRANCH: ${{ steps.env.outputs.CURRENT_BRANCH }}
+      SOURCE_REPO: ${{ steps.env.outputs.SOURCE_REPO }}
+      DEVICE_TARGET: ${{ steps.env.outputs.DEVICE_TARGET }}
+      DEVICE_SUBTARGET: ${{ steps.env.outputs.DEVICE_SUBTARGET }}
+      TOOLCHAIN_IMAGE: ${{ steps.env.outputs.TOOLCHAIN_IMAGE }}
+
+    steps:
+    # 1. 检出当前仓库代码（用于获取 configs/ 和 diy-script.sh 等本地文件）
+    - name: Checkout
+      uses: actions/checkout@main
+
+    # 2. 初始化编译环境：清理无用软件包，安装依赖
+    - name: Initialization Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive  # 避免 apt 安装时弹出交互式配置
+      run: |
+        # 清理系统冗余组件（节省空间、避免冲突）
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android
+        # 更新软件源并安装 OpenWrt 编译所需依赖（通过短链接动态获取）
+        sudo -E apt-get -qq update
+        sudo -E apt-get -y install $(curl -fsSL is.gd/depends_ubuntu_2204)
+        # 清理无用包和缓存
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        # 设置时区
+        sudo timedatectl set-timezone "$TZ"
+
+    # 3. 克隆 OpenWrt 源码，并记录版本信息
+    - name: Clone Source Code
+      id: clone
+      run: |
+        df -hT $GITHUB_WORKSPACE  # 显示初始磁盘使用情况
+        git clone $SOURCE_URL -b $SOURCE_BRANCH workspace/openwrt
+        cd workspace/openwrt
+        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+        echo "OPENWRT_PATH=$(echo $PWD)" >> $GITHUB_OUTPUT
+        # 获取最后一次提交的简要信息（用于 Release 描述）
+        export VERSION_INFO=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
+        echo "VERSION_INFO=$VERSION_INFO" >> $GITHUB_ENV
+        echo "VERSION_INFO=$(echo $VERSION_INFO)" >> $GITHUB_OUTPUT
+
+    # 4. 生成工具链专用配置文件
+    - name: Generate Toolchain Config
+      run: |
+        # 如果存在自定义配置文件，则移动到源码目录作为 .config
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        # 强制启用所有工具链相关选项，确保工具链完整
+        echo "CONFIG_ALL=y" >> $OPENWRT_PATH/.config
+        echo "CONFIG_ALL_NONSHARED=y" >> $OPENWRT_PATH/.config
+        cd $OPENWRT_PATH
+        make defconfig > /dev/null 2>&1  # 生成标准配置
+
+    # 5. 从配置中提取关键变量（平台、子平台等）
+    - name: Generate Variables
+      id: env
+      run: |
+        export CURRENT_BRANCH="$(git symbolic-ref --short HEAD)"
+        echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
+        echo "CURRENT_BRANCH=$(echo $CURRENT_BRANCH)" >> $GITHUB_OUTPUT
+        cd $OPENWRT_PATH
+        # 从 SOURCE_URL 提取仓库名（如 immortalwrt）
+        export SOURCE_REPO="$(echo $SOURCE_URL | awk -F '/' '{print $(NF)}' | sed 's/\.git$//')"
+        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+        echo "SOURCE_REPO=$(echo $SOURCE_REPO)" >> $GITHUB_OUTPUT
+        # 从 .config 中提取目标平台（如 ipq807x）
+        export DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+        echo "DEVICE_TARGET=$(echo $DEVICE_TARGET)" >> $GITHUB_OUTPUT
+        # 提取子平台（如 generic）
+        export DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+        echo "DEVICE_SUBTARGET=$(echo $DEVICE_SUBTARGET)" >> $GITHUB_OUTPUT
+        # 生成工具链镜像唯一名称
+        export TOOLCHAIN_IMAGE="toolchain-$SOURCE_REPO-$SOURCE_BRANCH-$DEVICE_TARGET-$DEVICE_SUBTARGET"
+        echo "TOOLCHAIN_IMAGE=$TOOLCHAIN_IMAGE" >> $GITHUB_ENV
+        echo "TOOLCHAIN_IMAGE=$(echo $TOOLCHAIN_IMAGE)" >> $GITHUB_OUTPUT
+
+    # 6. 比较工具链哈希值，判断是否需要重建
+    - name: Compare Toolchain Hash
+      id: hash
+      run: |
+        cd $OPENWRT_PATH
+        # 获取 tools/ 和 toolchain/ 目录的最新提交哈希
+        export CURRENT_HASH=$(git log --pretty=tformat:"%H" -n1 tools toolchain)
+        echo "CURRENT_HASH=$CURRENT_HASH" >> $GITHUB_ENV
+        echo "CURRENT_HASH is $CURRENT_HASH"
+        # 尝试从 Release 下载已缓存的哈希值
+        export CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.hash 2>/dev/null || echo "")
+        echo "CACHE_HASH is $CACHE_HASH"
+        # 若缓存不存在或哈希不匹配，则标记需要重建
+        if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
+          echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
+        fi
+
+    # 7. 安装 feeds（仅在需要重建工具链时执行）
+    - name: Install Feeds
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    # 8. 编译宿主工具（如 mkimage, patch 等）
+    - name: Compile Tools
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make defconfig
+        echo -e "$(nproc) thread compile"
+        make tools/compile -j$(nproc) || make tools/compile -j1 V=s
+
+    # 9. 编译交叉编译工具链（如 gcc-arm）
+    - name: Compile Toolchain
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        echo -e "$(nproc) thread compile"
+        make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+        # 清理临时文件，减小镜像体积
+        rm -rf .config* dl bin
+
+    # 10. 将整个 openwrt 目录打包为 SquashFS 镜像（只读压缩）
+    - name: Generate Toolchain Image
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd workspace
+        # 使用 zstd 压缩，指定 UID/GID 保证权限一致
+        mksquashfs openwrt $TOOLCHAIN_IMAGE -force-gid 1001 -force-uid 1001 -comp zstd
+        mkdir -p $GITHUB_WORKSPACE/output
+        # 分卷（GitHub 单文件限制约 2GB）
+        split -d -b 1900M $TOOLCHAIN_IMAGE $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.img.
+        rm $TOOLCHAIN_IMAGE
+        # 保存当前哈希，用于下次比对
+        echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.hash
+        ls -lh $GITHUB_WORKSPACE/output
+
+    # 11. 删除旧的工具链缓存文件（避免堆积）
+    - name: Delete Old Toolchain Assets
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      uses: mknejp/delete-release-assets@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ env.TOOLCHAIN_TAG }}
+        assets: '${{ env.TOOLCHAIN_IMAGE }}.*'
+        fail-if-no-assets: false
+        fail-if-no-release: false
+
+    # 12. 上传新的工具链镜像到 Release
+    - name: Upload Toolchain Image
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      uses: ncipollo/release-action@v1
+      with:
+        name: Toolchain-Image
+        allowUpdates: true
+        tag: ${{ env.TOOLCHAIN_TAG }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: output/*
+        body: OpenWrt 工具链镜像文件（用于加速后续构建）
+
+  # =============== 第二阶段：使用缓存工具链构建固件 ===============
+  Build:
+    needs: [Toolchain]  # 必须等待 Toolchain Job 成功完成
+    runs-on: ubuntu-22.04
+
+    # 从 Toolchain Job 继承关键变量
+    env:
+      OPENWRT_PATH: ${{ needs.Toolchain.outputs.OPENWRT_PATH }}
+      VERSION_INFO: ${{ needs.Toolchain.outputs.VERSION_INFO }}
+      CURRENT_BRANCH: ${{ needs.Toolchain.outputs.CURRENT_BRANCH }}
+      SOURCE_REPO: ${{ needs.Toolchain.outputs.SOURCE_REPO }}
+      DEVICE_TARGET: ${{ needs.Toolchain.outputs.DEVICE_TARGET }}
+      DEVICE_SUBTARGET: ${{ needs.Toolchain.outputs.DEVICE_SUBTARGET }}
+      TOOLCHAIN_IMAGE: ${{ needs.Toolchain.outputs.TOOLCHAIN_IMAGE }}
+
+    steps:
+    # 1. 显示服务器硬件信息（提醒用户注意资源限制）
+    - name: Check Server Performance
+      run: |
+        echo "警告⚠"
+        echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
+        echo -e "已知CPU型号（降序）：8370C，8272CL，8171M，E5-2673 \n"
+        echo "--------------------------CPU信息--------------------------"
+        echo "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
+        echo -e "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n"
+        echo "--------------------------内存信息--------------------------"
+        echo "已安装内存详细信息："
+        echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
+        echo "--------------------------硬盘信息--------------------------"
+        echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
+
+    # 2. 更彻底地初始化环境（为 OverlayFS 和 Btrfs 做准备）
+    - name: Initialization Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        docker rmi $(docker images -q)  # 清除 Docker 镜像
+        # 彻底卸载大型无用软件（Azure CLI、Java、PHP、MySQL 等）
+        sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* llvm* firefox* google* dotnet* powershell* openjdk* mysql* php* mongodb* moby* snap* aspnetcore*
+        sudo -E apt-get -qq update
+        # 安装 Btrfs 和 FUSE 支持（用于合并磁盘）
+        sudo -E apt-get -y install libfuse-dev $(curl -fsSL is.gd/depends_ubuntu_2204)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+
+    # 3. 合并根分区与 /mnt 分区，扩展可用磁盘空间（突破 ~14GB 限制）
+    - name: Combine Disks
+      run: |
+        sudo swapoff -a && sudo rm -f /mnt/swapfile
+        # 创建 loop 设备扩展根分区
+        export ROOT_FREE_KB=$(df --block-size=1024 --output=avail / | tail -1)
+        export ROOT_LOOP_KB=$(expr $ROOT_FREE_KB - 1048576)  # 保留 1GB
+        export ROOT_LOOP_BYTES=$(expr $ROOT_LOOP_KB \* 1024)
+        sudo fallocate -l $ROOT_LOOP_BYTES /root.img
+        export ROOT_LOOP_DEVNAME=$(sudo losetup -Pf --show /root.img)
+        sudo pvcreate -f $ROOT_LOOP_DEVNAME
+        # 同样处理 /mnt
+        export MNT_FREE_KB=$(df --block-size=1024 --output=avail /mnt | tail -1)
+        export MNT_LOOP_KB=$(expr $MNT_FREE_KB - 102400)
+        export MNT_LOOP_BYTES=$(expr $MNT_LOOP_KB \* 1024)
+        sudo fallocate -l $MNT_LOOP_BYTES /mnt/mnt.img
+        export MNT_LOOP_DEVNAME=$(sudo losetup -Pf --show /mnt/mnt.img)
+        sudo pvcreate -f $MNT_LOOP_DEVNAME
+        # 合并为 LVM 卷组
+        sudo vgcreate vgstorage $ROOT_LOOP_DEVNAME $MNT_LOOP_DEVNAME
+        sudo lvcreate -n lvstorage -l 100%FREE vgstorage
+        export LV_DEVNAME=$(sudo lvscan | awk -F "'" '{print $2}')
+        # 格式化为 Btrfs 并挂载到工作目录
+        sudo mkfs.btrfs -L combinedisk $LV_DEVNAME
+        sudo mount -o compress=zstd $LV_DEVNAME $GITHUB_WORKSPACE
+        sudo chown -R runner:runner $GITHUB_WORKSPACE
+        mkdir $GITHUB_WORKSPACE/tmp && chmod 777 $GITHUB_WORKSPACE/tmp
+        sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp
+        sudo mount -B $GITHUB_WORKSPACE/tmp /tmp && df -hT
+
+    # 4. 重新检出当前分支代码（确保本地脚本最新）
+    - name: Checkout
+      run: |
+        cd $GITHUB_WORKSPACE
+        git init
+        git remote add origin https://github.com/$GITHUB_REPOSITORY
+        git fetch
+        git checkout -t origin/$CURRENT_BRANCH
+
+    # 5. 下载并挂载缓存的工具链镜像（使用 OverlayFS 实现可写层）
+    - name: Prepare Toolchain Image
+      run: |
+        mkdir -p workspace
+        cd workspace
+        # 合并分卷文件
+        for i in {0..9}
+        do
+          curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.img.0$i >> $TOOLCHAIN_IMAGE.img || break
+        done
+        mkdir openwrt-ro openwrt workdir overlay
+        # 只读挂载工具链镜像
+        sudo mount -o loop $TOOLCHAIN_IMAGE.img openwrt-ro
+        # 使用 OverlayFS 创建可写层（底层只读，上层可写）
+        sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
+        cd $OPENWRT_PATH
+        git pull  # 更新源码（但工具链保持不变）
+
+    # 6. 安装 feeds（因源码可能更新）
+    - name: Install Feeds
+      run: |
+        cd $OPENWRT_PATH
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    # 7. 应用自定义配置和脚本
+    - name: Load Custom Configuration
+      run: |
+        # 复制自定义文件（如 banner、默认配置等）
+        [ -e files ] && mv files $OPENWRT_PATH/files
+        # 加载设备配置
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        # 赋予脚本执行权限
+        chmod +x $GITHUB_WORKSPACE/scripts/*.sh
+        chmod +x $DIY_SCRIPT
+        cd $OPENWRT_PATH
+        # 执行自定义脚本（核心定制步骤）
+        $GITHUB_WORKSPACE/$DIY_SCRIPT
+        # 预置 Clash 内核和终端工具
+        $GITHUB_WORKSPACE/scripts/preset-clash-core.sh $CLASH_KERNEL
+        $GITHUB_WORKSPACE/scripts/preset-terminal-tools.sh
+
+    # 8. 下载所有依赖源码包（dl/ 目录）
+    - name: Download DL Package
+      run: |
+        cd $OPENWRT_PATH
+        make defconfig
+        make oldconfig
+        make download -j8  # 并行下载
+        # 清理空文件或损坏文件
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    # 9. 编译内核和软件包
+    - name: Compile Packages
+      run: |
+        cd $OPENWRT_PATH
+        echo -e "$(nproc) thread compile"
+        make diffconfig  # 生成精简配置（可选）
+        # 编译目标平台（内核+基础系统）
+        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
+        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
+        # 编译所有选中的软件包
+        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        make package/index  # 生成软件包索引
+
+    # 10. 生成最终固件镜像
+    - name: Generate Firmware
+      id: generate
+      run: |
+        cd $OPENWRT_PATH
+        mkdir -p files/etc/uci-defaults
+        # （可选）添加首次启动脚本
+        # cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
+        make package/install -j$(nproc) || make package/install -j1 V=s
+        make target/install -j$(nproc) || make target/install -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT  # 标记成功
+        make checksum  # 生成 sha256sums
+        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+        echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+
+    # 11. 检查最终磁盘使用情况（即使失败也运行）
+    - name: Check Space Usage
+      if: always()
+      run: |
+        lsblk -f
+        echo -e "\n"
+        df -hT
+        echo -e "\n"
+        sudo btrfs filesystem usage $GITHUB_WORKSPACE
+
+    # 12. （可选）上传整个 bin 目录到 Artifact（调试用）
+    - name: Upload Bin Directory
+      if: steps.generate.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        path: ${{ env.OPENWRT_PATH }}/bin
+
+    # 13. 整理固件目录（移除冗余，打包软件包）
+    - name: Organize Files
+      if: steps.generate.outputs.status == 'success'
+      run: |
+        cd $OPENWRT_PATH/bin/targets/*/*
+        cat sha256sums
+        cp $OPENWRT_PATH/.config build.config
+        mv -f $OPENWRT_PATH/bin/packages/*/*/*.apk packages
+        tar -zcf Packages.tar.gz packages
+        rm -rf packages feeds.buildinfo version.buildinfo
+        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
+
+    # 14. 若不发布 Release，则上传到临时 Artifact
+    - name: Upload Firmware To Artifact
+      if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE_PATH }}
+
+    # 15. 发布固件到 GitHub Release
+    - name: Upload Firmware To Release
+      if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
+      uses: ncipollo/release-action@v1
+      with:
+        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+        allowUpdates: true
+        tag: ${{ env.FIRMWARE_TAG }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: ${{ env.FIRMWARE_PATH }}/*
+        body: |
+          **这是 ipq8071-ap8220-128m 多功能版固件**
+          直刷固件参见 Tag 名为 ipq8071-ap8220-128m 的 Releases
+          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/bhrq12/immortalwrt.git)更新记录】
+          ${{ env.VERSION_INFO }}
