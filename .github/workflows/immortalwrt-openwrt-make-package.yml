@@ -7,7 +7,7 @@
 #===============================================
 
 # 工作流名称，在 GitHub Actions 页面中显示
-name: ipq8071 ap8220 128m
+name: immortalwrt openwrt make package
 
 # 触发条件
 on:
