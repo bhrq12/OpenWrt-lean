@@ -14,6 +14,44 @@ on:
   workflow_dispatch:        # 允许在 GitHub 界面手动触发
   # schedule:               # 定时自动构建（当前已注释，不启用）
   #   - cron: 0 20 * * *    # 每天 UTC 时间 20:00 执行（即北京时间次日 04:00）
+  
+    inputs:
+      CONFIG:
+        default: 'MEDIATEK'
+        required: true
+        type: choice
+        options:
+          - MEDIATEK
+          - ROCKCHIP
+          - X86
+          - IPQ50XX-WIFI-YES
+          - IPQ50XX-WIFI-NO
+          - IPQ60XX-WIFI-YES
+          - IPQ60XX-WIFI-NO
+          - IPQ807X-WIFI-YES
+          - IPQ807X-WIFI-NO
+          - TEST
+      SOURCE:
+        default: 'VIKINGYFY/immortalwrt'
+        required: true
+        type: choice
+        options:
+          - VIKINGYFY/immortalwrt
+          - immortalwrt/immortalwrt
+          - LiBwrt/openwrt-6.x
+          - qosmio/openwrt-ipq
+      BRANCH:
+        default: 'main'
+        required: true
+        type: string
+      PACKAGE:
+        required: false
+        type: string
+      TEST:
+        description: '仅输出配置文件，不编译固件。'
+        default: 'true'
+        required: true
+        type: boolean
 
 # 全局环境变量（所有 Job 均可使用）
 env:
