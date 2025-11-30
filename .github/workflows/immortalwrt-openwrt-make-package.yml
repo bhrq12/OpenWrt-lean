@@ -26,7 +26,7 @@ env:
   FIRMWARE_TAG: ROOTFS_PLUS                                 # 固件发布的 Release 标签名
   OPENWRT_RELEASE: true                                     # （保留字段，当前未实际使用）
   OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt                 # （保留字段）
-  WRT_PACKAGE: ${{ github.event.inputs.PACKAGE }}
+  PACKAGE_INPUT: ${{ github.event.inputs.PACKAGE }}
   TZ: Asia/Shanghai                                         # 设置时区为上海
 
 # 定义两个 Job：先构建工具链（Toolchain），再构建固件（Build）
