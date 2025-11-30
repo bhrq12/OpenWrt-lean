@@ -1,58 +1,17 @@
-#===============================================
-# 说明：构建 OpenWrt 固件（针对 ipq8071 平台的 AP8220 设备，128MB 内存）
-# 文件名：build-openwrt.yml
-# 许可证：MIT
-# 作者：P3TERX（基于其模板修改）
-# 源码地址：https://github.com/P3TERX
-#===============================================
-
 # 工作流名称，在 GitHub Actions 页面中显示
 name: immortalwrt openwrt make package
 
 # 触发条件
 on:
   workflow_dispatch:        # 允许在 GitHub 界面手动触发
-  # schedule:               # 定时自动构建（当前已注释，不启用）
-  #   - cron: 0 20 * * *    # 每天 UTC 时间 20:00 执行（即北京时间次日 04:00）
-  
     inputs:
-      CONFIG:
-        default: 'MEDIATEK'
-        required: true
-        type: choice
-        options:
-          - MEDIATEK
-          - ROCKCHIP
-          - X86
-          - IPQ50XX-WIFI-YES
-          - IPQ50XX-WIFI-NO
-          - IPQ60XX-WIFI-YES
-          - IPQ60XX-WIFI-NO
-          - IPQ807X-WIFI-YES
-          - IPQ807X-WIFI-NO
-          - TEST
-      SOURCE:
-        default: 'VIKINGYFY/immortalwrt'
-        required: true
-        type: choice
-        options:
-          - VIKINGYFY/immortalwrt
-          - immortalwrt/immortalwrt
-          - LiBwrt/openwrt-6.x
-          - qosmio/openwrt-ipq
-      BRANCH:
-        default: 'main'
-        required: true
-        type: string
       PACKAGE:
         required: false
         type: string
-      TEST:
-        description: '仅输出配置文件，不编译固件。'
-        default: 'true'
-        required: true
-        type: boolean
 
+  # schedule:               # 定时自动构建（当前已注释，不启用）
+  #   - cron: 0 20 * * *    # 每天 UTC 时间 20:00 执行（即北京时间次日 04:00）
+  
 # 全局环境变量（所有 Job 均可使用）
 env:
   SOURCE_URL: https://github.com/bhrq12/immortalwrt.git     # OpenWrt 源码仓库地址（ImmortalWrt）
@@ -66,6 +25,7 @@ env:
   FIRMWARE_TAG: ROOTFS_PLUS                                 # 固件发布的 Release 标签名
   OPENWRT_RELEASE: true                                     # （保留字段，当前未实际使用）
   OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt                 # （保留字段）
+  WRT_PACKAGE: ${{inputs.PACKAGE}}                          # 插件调整
   TZ: Asia/Shanghai                                         # 设置时区为上海
 
 # 定义两个 Job：先构建工具链（Toolchain），再构建固件（Build）
