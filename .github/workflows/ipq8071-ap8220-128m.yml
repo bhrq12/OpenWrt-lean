@@ -417,5 +417,5 @@ jobs:
         body: |
           **这是 ipq8071-ap8220-128m 多功能版固件**
           直刷固件参见 Tag 名为 ipq8071-ap8220-128m 的 Releases
-          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/coolsnowwolf/lede)更新记录】
+          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/bhrq12/immortalwrt.git)更新记录】
           ${{ env.VERSION_INFO }}
