@@ -350,53 +350,68 @@ jobs:
         # 清理空文件或损坏文件
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-
+    
     # 9. 编译指定的软件包（支持逗号分隔）
     - name: Compile Specified Packages
       run: |
         cd "$OPENWRT_PATH"
         PKGS_INPUT="$PACKAGE_INPUT"
-
-        # 安全分割并去重、去空格
+        
+        # 安全分割、去重、去空格
         IFS=',' read -r -a PKG_ARRAY_RAW <<< "$PKGS_INPUT"
-        declare -a VALID_PKGS=()
+        declare -A PKG_MAP
         for raw_pkg in "${PKG_ARRAY_RAW[@]}"; do
-          # 去除首尾空格
           pkg=$(echo "$raw_pkg" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          # 跳过空字符串
           if [ -n "$pkg" ]; then
-            VALID_PKGS+=("$pkg")
+            PKG_MAP["$pkg"]=1
           fi
         done
-
-        # 去重（可选，防止用户重复输入）
-        declare -A PKG_MAP
-        for pkg in "${VALID_PKGS[@]}"; do
-          PKG_MAP["$pkg"]=1
-        done
         VALID_PKGS=("${!PKG_MAP[@]}")
-
+        
         if [ ${#VALID_PKGS[@]} -eq 0 ]; then
           echo "❌ 无有效软件包可编译！"
           exit 1
         fi
-
+        
         echo "✅ 将编译以下软件包: ${VALID_PKGS[*]}"
-
-        # 逐个编译
+        
+        # 预先更新 feeds（确保依赖可用）
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+    
+        # 逐个编译每个包（带清理和重试机制）
         for pkg in "${VALID_PKGS[@]}"; do
           echo ""
           echo "──────────────────────"
-          echo "📦 编译: $pkg"
+          echo "📦 编译软件包: $pkg"
           echo "──────────────────────"
-          make "package/$pkg/compile" -j$(nproc) V=s || \
-          make "package/$pkg/compile" -j1 V=s || {
-            echo "❌ 编译失败: $pkg"
-            exit 1
-          }
+          
+          # 可选：清理该包的旧构建（避免缓存干扰）
+          make "package/$pkg/clean" > /dev/null 2>&1 || true
+          
+          # 第一次尝试：使用并行编译
+          if make "package/$pkg/compile" -j$(nproc) V=s; then
+            echo "✅ 成功编译: $pkg"
+            continue
+          fi
+          
+          echo "⚠️ 并行编译失败，尝试单线程重试..."
+          
+          # 第二次尝试：单线程 + 更详细日志（保留 V=s）
+          if make "package/$pkg/compile" -j1 V=s; then
+            echo "✅ 单线程重试成功: $pkg"
+            continue
+          fi
+          
+          # 若仍失败，输出关键错误片段并退出
+          echo "❌ 编译彻底失败: $pkg"
+          echo "🔍 最近 30 行错误日志："
+          tail -n 30 build_dir/target-*/log/*"$pkg"* 2>/dev/null || echo "(日志未找到)"
+          exit 1
         done
-
-        # 生成软件包索引
+        
+        # 生成软件包索引（用于 opkg 安装）
+        echo "📦 生成软件包索引..."
         make package/index
         
     # # 10. 生成最终固件镜像
