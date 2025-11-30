@@ -6,7 +6,8 @@ on:
   workflow_dispatch:        # 允许在 GitHub 界面手动触发
     inputs:
       PACKAGE:
-        required: false
+        description: '要编译的软件包名称（如 luci-app-openclash），多个软件包请用逗号隔开。'
+        required: true
         type: string
 
   # schedule:               # 定时自动构建（当前已注释，不启用）
