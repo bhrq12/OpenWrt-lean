@@ -213,20 +213,21 @@ jobs:
       DEVICE_TARGET: ${{ needs.Toolchain.outputs.DEVICE_TARGET }}
       DEVICE_SUBTARGET: ${{ needs.Toolchain.outputs.DEVICE_SUBTARGET }}
       TOOLCHAIN_IMAGE: ${{ needs.Toolchain.outputs.TOOLCHAIN_IMAGE }}
+      PACKAGE_INPUT: ${{ github.event.inputs.PACKAGE }}
 
     steps:
     
     # 👇【新增】第一步：验证 PACKAGE 是否为空
     - name: Validate PACKAGE input
       run: |
-        PKG="${{ github.event.inputs.PACKAGE }}"
-        if [ -z "$PKG" ]; then
+        PKGS_INPUT="$PACKAGE_INPUT"
+        if [ -z "$PKGS_INPUT" ]; then
           echo "❌ 错误：PACKAGE 参数不能为空！"
           echo "请在手动触发时填写要编译的软件包名称（例如：luci-app-openclash）"
           echo "多个包请用逗号分隔，如：luci-app-openclash,luci-theme-argon"
           exit 1
         fi
-        echo "✅ 将编译软件包: $PKG"
+        echo "✅ 将编译软件包: $PKGS_INPUT"
     
     # 1. 显示服务器硬件信息（提醒用户注意资源限制）
     - name: Check Server Performance
@@ -350,33 +351,68 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    # 9. 编译内核和软件包
-    - name: Compile Packages
+    # 9. 编译指定的软件包（支持逗号分隔）
+    - name: Compile Specified Packages
       run: |
-        cd $OPENWRT_PATH
-        echo -e "$(nproc) thread compile"
-        make diffconfig  # 生成精简配置（可选）
-        # 编译目标平台（内核+基础系统）
-        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
-        # 编译所有选中的软件包
-        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
-        make package/index  # 生成软件包索引
+        cd "$OPENWRT_PATH"
+        PKGS_INPUT="$PACKAGE_INPUT"
 
-    # 10. 生成最终固件镜像
-    - name: Generate Firmware
-      id: generate
-      run: |
-        cd $OPENWRT_PATH
-        mkdir -p files/etc/uci-defaults
-        # （可选）添加首次启动脚本
-        # cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
-        make package/install -j$(nproc) || make package/install -j1 V=s
-        make target/install -j$(nproc) || make target/install -j1 V=s
-        echo "status=success" >> $GITHUB_OUTPUT  # 标记成功
-        make checksum  # 生成 sha256sums
-        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
-        echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+        # 安全分割并去重、去空格
+        IFS=',' read -r -a PKG_ARRAY_RAW <<< "$PKGS_INPUT"
+        declare -a VALID_PKGS=()
+        for raw_pkg in "${PKG_ARRAY_RAW[@]}"; do
+          # 去除首尾空格
+          pkg=$(echo "$raw_pkg" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          # 跳过空字符串
+          if [ -n "$pkg" ]; then
+            VALID_PKGS+=("$pkg")
+          fi
+        done
+
+        # 去重（可选，防止用户重复输入）
+        declare -A PKG_MAP
+        for pkg in "${VALID_PKGS[@]}"; do
+          PKG_MAP["$pkg"]=1
+        done
+        VALID_PKGS=("${!PKG_MAP[@]}")
+
+        if [ ${#VALID_PKGS[@]} -eq 0 ]; then
+          echo "❌ 无有效软件包可编译！"
+          exit 1
+        fi
+
+        echo "✅ 将编译以下软件包: ${VALID_PKGS[*]}"
+
+        # 逐个编译
+        for pkg in "${VALID_PKGS[@]}"; do
+          echo ""
+          echo "──────────────────────"
+          echo "📦 编译: $pkg"
+          echo "──────────────────────"
+          make "package/$pkg/compile" -j$(nproc) V=s || \
+          make "package/$pkg/compile" -j1 V=s || {
+            echo "❌ 编译失败: $pkg"
+            exit 1
+          }
+        done
+
+        # 生成软件包索引
+        make package/index
+        
+    # # 10. 生成最终固件镜像
+    # - name: Generate Firmware
+    #   id: generate
+    #   run: |
+    #     cd $OPENWRT_PATH
+    #     mkdir -p files/etc/uci-defaults
+    #     # （可选）添加首次启动脚本
+    #     # cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
+    #     make package/install -j$(nproc) || make package/install -j1 V=s
+    #     make target/install -j$(nproc) || make target/install -j1 V=s
+    #     echo "status=success" >> $GITHUB_OUTPUT  # 标记成功
+    #     make checksum  # 生成 sha256sums
+    #     echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+    #     echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
 
     # 11. 检查最终磁盘使用情况（即使失败也运行）
     - name: Check Space Usage
@@ -395,19 +431,38 @@ jobs:
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
-
-    # 13. 整理固件目录（移除冗余，打包软件包）
-    - name: Organize Files
+    
+    # 13. 打包生成的 .ipk 软件包
+    - name: Package Compiled IPKs
       if: steps.generate.outputs.status == 'success'
       run: |
-        cd $OPENWRT_PATH/bin/targets/*/*
-        cat sha256sums
-        cp $OPENWRT_PATH/.config build.config
-        mv -f $OPENWRT_PATH/bin/packages/*/*/*.apk packages
-        tar -zcf Packages.tar.gz packages
-        rm -rf packages feeds.buildinfo version.buildinfo
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-
+        cd "$OPENWRT_PATH"
+        
+        # 查找所有 .ipk 文件所在的 feeds 目录（通常只有一个架构）
+        PKG_BASE="bin/packages"
+        if [ ! -d "$PKG_BASE" ]; then
+          echo "❌ 错误：未找到 bin/packages 目录，可能编译未生成任何 .ipk"
+          ls -la bin/
+          exit 1
+        fi
+    
+        # 创建输出目录
+        OUTPUT_DIR="$GITHUB_WORKSPACE/ipk_output"
+        mkdir -p "$OUTPUT_DIR"
+    
+        # 复制所有 .ipk 和 Packages* 索引文件
+        find "$PKG_BASE" -name "*.ipk" -exec cp {} "$OUTPUT_DIR/" \;
+        find "$PKG_BASE" -name "Packages*" -exec cp {} "$OUTPUT_DIR/" \;
+    
+        # 可选：保留 build.config（记录配置）
+        cp .config "$OUTPUT_DIR/build.config" 2>/dev/null || true
+    
+        # 打包
+        tar -zcf "$OUTPUT_DIR/Packages.tar.gz" -C "$OUTPUT_DIR" .
+    
+        echo "FIRMWARE_PATH=$OUTPUT_DIR" >> $GITHUB_ENV
+        echo "✅ 已打包 $(ls $OUTPUT_DIR/*.ipk | wc -l) 个 .ipk 文件"
+        
     # 14. 若不发布 Release，则上传到临时 Artifact
     - name: Upload Firmware To Artifact
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
