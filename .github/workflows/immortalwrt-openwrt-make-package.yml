@@ -447,26 +447,26 @@ jobs:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
     
-    # 13. 打包生成的 .ipk 软件包
+    # 13. 打包生成的 .apk 软件包
     - name: Package Compiled IPKs
       if: steps.generate.outputs.status == 'success'
       run: |
         cd "$OPENWRT_PATH"
         
-        # 查找所有 .ipk 文件所在的 feeds 目录（通常只有一个架构）
+        # 查找所有 .apk 文件所在的 feeds 目录（通常只有一个架构）
         PKG_BASE="bin/packages"
         if [ ! -d "$PKG_BASE" ]; then
-          echo "❌ 错误：未找到 bin/packages 目录，可能编译未生成任何 .ipk"
+          echo "❌ 错误：未找到 bin/packages 目录，可能编译未生成任何 .apk"
           ls -la bin/
           exit 1
         fi
     
         # 创建输出目录
-        OUTPUT_DIR="$GITHUB_WORKSPACE/ipk_output"
+        OUTPUT_DIR="$GITHUB_WORKSPACE/apk_output"
         mkdir -p "$OUTPUT_DIR"
     
-        # 复制所有 .ipk 和 Packages* 索引文件
-        find "$PKG_BASE" -name "*.ipk" -exec cp {} "$OUTPUT_DIR/" \;
+        # 复制所有 .apk 和 Packages* 索引文件
+        find "$PKG_BASE" -name "*.apk" -exec cp {} "$OUTPUT_DIR/" \;
         find "$PKG_BASE" -name "Packages*" -exec cp {} "$OUTPUT_DIR/" \;
     
         # 可选：保留 build.config（记录配置）
@@ -476,7 +476,7 @@ jobs:
         tar -zcf "$OUTPUT_DIR/Packages.tar.gz" -C "$OUTPUT_DIR" .
     
         echo "FIRMWARE_PATH=$OUTPUT_DIR" >> $GITHUB_ENV
-        echo "✅ 已打包 $(ls $OUTPUT_DIR/*.ipk | wc -l) 个 .ipk 文件"
+        echo "✅ 已打包 $(ls $OUTPUT_DIR/*.apk | wc -l) 个 .apk 文件"
         
     # 14. 若不发布 Release，则上传到临时 Artifact
     - name: Upload Firmware To Artifact
