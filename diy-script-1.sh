@@ -32,6 +32,9 @@ git clone https://github.com/bhrq12/package.git package/mypackage
 git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 git clone https://github.com/bhrq12/luci-app-baidupcs-web.git package/luci-app-baidupcs-web
 git clone https://github.com/fw876/helloworld.git package/helloworld
+git clone https://github.com/bhrq12/small-package.git package/small-package
+
+
 
 # 添加kenzok8仓库（包含含常用的第三方网络工具仓库）
 # git clone add https://github.com/kenzok8/openwrt-packages.git package/kenzok8
