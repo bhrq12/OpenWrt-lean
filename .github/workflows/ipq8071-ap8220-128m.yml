@@ -25,7 +25,7 @@ env:
   CLASH_KERNEL: arm64                                       # Clash 内核架构（用于预置）
   UPLOAD_BIN_DIR: false                                     # 是否上传整个 bin 目录（调试用，通常设为 false）
   FIRMWARE_RELEASE: true                                    # 是否将最终固件发布到 GitHub Release
-  FIRMWARE_TAG: ROOTFS_PLUS                                 # 固件发布的 Release 标签名
+  FIRMWARE_TAG: ROOTFS_PLUS_AP8220_128m_PLUS_immortalwrt_$(date +"%Y-%m-%d %H:%M:%S")                               # 固件发布的 Release 标签名
   OPENWRT_RELEASE: true                                     # （保留字段，当前未实际使用）
   OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt                 # （保留字段）
   TZ: Asia/Shanghai                                         # 设置时区为上海
