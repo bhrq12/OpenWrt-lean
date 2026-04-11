@@ -14,8 +14,8 @@ on:
   #   - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/bhrq12/openwrt-24.10.git
-  SOURCE_BRANCH: v2025.10.31
+  SOURCE_URL: https://github.com/bhrq12/lede.git
+  SOURCE_BRANCH: v2025.5.22
   CONFIG_FILE: configs/ap8220-128m.txt
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
@@ -259,6 +259,10 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
+
+    - name: SSH connection to Actions
+      uses: mxschmitt/action-tmate@v3
+      
     - name: Generate Firmware
       id: generate
       run: |
@@ -266,6 +270,7 @@ jobs:
         mkdir -p files/etc/uci-defaults
         cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
         make -j$(nproc) || make -j1 || make -j1 V=s
+        # make package/acctl/compile V=99
         echo "status=success" >> $GITHUB_OUTPUT
         make checksum
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
@@ -275,7 +280,8 @@ jobs:
         cd $OPENWRT_PATH
         echo -e "$(nproc) thread compile"
         make diffconfig
-        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        # make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        make package/acctl/compile V=99
         make package/index
     - name: Check Space Usage
       if: always()
