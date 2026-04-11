@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 128m Plus
+name: AP4220 128m Plus acctl
 
 on:
   workflow_dispatch:
