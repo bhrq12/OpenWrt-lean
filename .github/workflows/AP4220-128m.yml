@@ -16,7 +16,7 @@ on:
 env:
   SOURCE_URL: https://github.com/bhrq12/lede.git
   SOURCE_BRANCH: v2025.5.22
-  CONFIG_FILE: configs/ap8220-128m.txt
+  CONFIG_FILE: configs/AP4220-config.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: arm64
@@ -24,7 +24,7 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: ROOTFS_PLUS
   OPENWRT_RELEASE: true
-  OPENWRT_TAG: AP8220_128m_PLUS
+  OPENWRT_TAG: AP4220_128m_PLUS_acctl
   TZ: Asia/Shanghai
 
 jobs:
