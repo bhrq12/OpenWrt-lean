@@ -1,30 +1,38 @@
 #===============================================
-# Description: Build OpenWrt with acctl for AP4220 128m Plus
-# File name: AP4220-128m-Plus-acctl.yml
+# Description: Interactive build OpenWrt packages
+# File name: interactive-build.yml
 # Lisence: MIT
-# Author: bhrq12
-# https://github.com/bhrq12/lede.git
 #===============================================
 
-name: AP4220 128m Plus acctl
+name: OpenWrt Interactive Build
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: 0 20 * * *
+    inputs:
+      package_name:
+        description: 'Package name to build (e.g., acctl, luci-app-openclash)'
+        required: true
+        default: 'acctl'
+      config_file:
+        description: 'Configuration file path (e.g., configs/AP4220-config.config)'
+        required: true
+        default: 'configs/AP4220-config.config'
+      build_firmware:
+        description: 'Build firmware along with packages (true/false)'
+        required: true
+        default: 'false'
 
 env:
   SOURCE_URL: https://github.com/bhrq12/lede.git
   SOURCE_BRANCH: v2025.5.22
-  CONFIG_FILE: configs/AP4220-config.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: arm64
   UPLOAD_BIN_DIR: false
-  FIRMWARE_RELEASE: true
-  FIRMWARE_TAG: ROOTFS_PLUS
-  OPENWRT_RELEASE: true
-  OPENWRT_TAG: AP4220_128m_PLUS_acctl
+  FIRMWARE_RELEASE: false
+  FIRMWARE_TAG: INTERACTIVE_FIRMWARE
+  OPENWRT_RELEASE: false
+  OPENWRT_TAG: INTERACTIVE_BUILD
   TZ: Asia/Shanghai
 
 jobs:
@@ -71,7 +79,7 @@ jobs:
         echo "VERSION_INFO=$(echo $VERSION_INFO)" >> $GITHUB_OUTPUT
     - name: Generate Toolchain Config
       run: |
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        [ -e ${{ github.event.inputs.config_file }} ] && mv ${{ github.event.inputs.config_file }} $OPENWRT_PATH/.config
         echo "CONFIG_ALL=y" >> $OPENWRT_PATH/.config
         echo "CONFIG_ALL_NONSHARED=y" >> $OPENWRT_PATH/.config
         cd $OPENWRT_PATH
@@ -252,7 +260,7 @@ jobs:
     - name: Load Custom Configuration
       run: |
         [ -e files ] && mv files $OPENWRT_PATH/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        [ -e ${{ github.event.inputs.config_file }} ] && mv ${{ github.event.inputs.config_file }} $OPENWRT_PATH/.config
         chmod +x $GITHUB_WORKSPACE/scripts/*.sh
         chmod +x $DIY_SCRIPT
         cd $OPENWRT_PATH
@@ -272,42 +280,44 @@ jobs:
     - name: SSH connection to Actions
       uses: mxschmitt/action-tmate@v3
       
-    # - name: Generate Firmware
-    #   id: generate
-    #   run: |
-    #     cd $OPENWRT_PATH
-    #     mkdir -p files/etc/uci-defaults
-    #     cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
-    #     # 编译固件，添加多级错误处理
-    #     echo "开始编译固件，使用 $(nproc) 线程"
-    #     make -j$(nproc) || {
-    #       echo "首次编译失败，尝试单线程编译"
-    #       make -j1 || {
-    #         echo "单线程编译失败，启用详细输出模式"
-    #         make -j1 V=s
-    #       }
-    #     }
-    #     # 检查编译是否成功
-    #     if [ -f bin/targets/*/*/*.bin ]; then
-    #       echo "status=success" >> $GITHUB_OUTPUT
-    #       make checksum
-    #       echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
-    #       echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
-    #       echo "固件编译成功！"
-    #     else
-    #       echo "状态=失败：未找到编译产物"
-    #       exit 1
-    #     fi
-    - name: Compile Packages
+    - name: Build Firmware (if requested)
+      if: github.event.inputs.build_firmware == 'true'
+      id: build_firmware
       run: |
         cd $OPENWRT_PATH
-        echo "开始编译软件包，使用 $(nproc) 线程"
+        mkdir -p files/etc/uci-defaults
+        cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
+        # 编译固件，添加多级错误处理
+        echo "开始编译固件，使用 $(nproc) 线程"
+        make -j$(nproc) || {
+          echo "首次编译失败，尝试单线程编译"
+          make -j1 || {
+            echo "单线程编译失败，启用详细输出模式"
+            make -j1 V=s
+          }
+        }
+        # 检查编译是否成功
+        if [ -f bin/targets/*/*/*.bin ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          make checksum
+          echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+          echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+          echo "固件编译成功！"
+        else
+          echo "状态=失败：未找到编译产物"
+          exit 1
+        fi
+    - name: Compile Package
+      id: compile_package
+      run: |
+        cd $OPENWRT_PATH
+        echo "开始编译软件包：${{ github.event.inputs.package_name }}"
         make diffconfig
-        # 编译acctl软件包，启用详细输出
-        echo "编译acctl软件包"
-        make package/acctl/compile V=99 || {
-          echo "acctl编译失败，尝试单线程编译"
-          make package/acctl/compile -j1 V=s
+        # 编译指定软件包，启用详细输出
+        echo "编译${{ github.event.inputs.package_name }}软件包"
+        make package/${{ github.event.inputs.package_name }}/compile V=99 || {
+          echo "${{ github.event.inputs.package_name }}编译失败，尝试单线程编译"
+          make package/${{ github.event.inputs.package_name }}/compile -j1 V=s
         }
         # 生成软件包索引
         echo "生成软件包索引"
@@ -321,41 +331,27 @@ jobs:
         echo -e "\n"
         sudo btrfs filesystem usage $GITHUB_WORKSPACE
     - name: Upload Bin Directory
-      if: steps.generate.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      if: steps.compile_package.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       uses: actions/upload-artifact@main
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
 
     - name: Organize Files
-      if: steps.generate.outputs.status == 'success'
+      if: steps.compile_package.outputs.status == 'success' || steps.build_firmware.outputs.status == 'success'
       run: |
         cd $OPENWRT_PATH/bin/targets/*/*
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
-        # mv -f $OPENWRT_PATH/bin/packages/*/*/*.ipk packages
+        # 收集编译的软件包
+        mkdir -p packages
+        cp -f $OPENWRT_PATH/bin/packages/*/*/${{ github.event.inputs.package_name }}*.ipk packages/
         tar -zcf Packages.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-    - name: Upload Firmware To Artifact
-      if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
+    - name: Upload Build Results
+      if: steps.compile_package.outputs.status == 'success' || steps.build_firmware.outputs.status == 'success'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        name: ${{ env.SOURCE_REPO }}-package-${{ github.event.inputs.package_name }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE_PATH }}
-
-    - name: Upload Firmware To Release
-      if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
-      uses: ncipollo/release-action@v1
-      with:
-        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
-        allowUpdates: true
-        tag: ${{ env.FIRMWARE_TAG }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ${{ env.FIRMWARE_PATH }}/*
-        body: |
-          **This is Temporary Firmware for Armvirt 64**
-          * 这是 AP4220_PLUS 多功能版打包临时固件，不可直刷
-          直刷固件参见 Tag 名为 AP4220_PLUS 的 Releases
-          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/coolsnowwolf/lede)更新记录】
-          ${{ env.VERSION_INFO }}

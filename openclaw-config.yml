@@ -1,0 +1,163 @@
+#===============================================
+# Description: OpenClaw configuration for OpenWrt build workflows
+# File name: openclaw-config.yml
+# Lisence: MIT
+#===============================================
+
+name: OpenWrt Build Workflow
+
+version: 1.0
+
+global:
+  github_token: ${{ secrets.GITHUB_TOKEN }}
+  repository: ${{ github.repository }}
+  branch: main
+
+workflows:
+  # 全自动构建工作流
+  auto_build:
+    name: Automatic OpenWrt Build
+    description: Build OpenWrt firmware automatically
+    trigger: 
+      type: github_actions
+      workflow: main-build.yml
+      inputs: {}
+    steps:
+      - name: Trigger Auto Build
+        action: github_actions
+        params:
+          workflow: main-build.yml
+          ref: main
+          inputs: {}
+      - name: Monitor Build Status
+        action: github_actions_monitor
+        params:
+          workflow: main-build.yml
+          timeout: 3600
+      - name: Download Build Results
+        action: github_release_download
+        params:
+          tag: OPENWRT_FIRMWARE
+          output_dir: ./builds/auto
+
+  # 交互构建工作流
+  interactive_build:
+    name: Interactive OpenWrt Build
+    description: Build OpenWrt packages with manual configuration
+    trigger:
+      type: manual
+    parameters:
+      - name: package_name
+        type: string
+        required: true
+        default: acctl
+        description: Package name to build
+      - name: config_file
+        type: string
+        required: true
+        default: configs/AP4220-config.config
+        description: Configuration file path
+      - name: build_firmware
+        type: boolean
+        required: true
+        default: false
+        description: Build firmware along with packages
+    steps:
+      - name: Trigger Interactive Build
+        action: github_actions
+        params:
+          workflow: interactive-build.yml
+          ref: main
+          inputs:
+            package_name: ${{ parameters.package_name }}
+            config_file: ${{ parameters.config_file }}
+            build_firmware: ${{ parameters.build_firmware }}
+      - name: Monitor Build Status
+        action: github_actions_monitor
+        params:
+          workflow: interactive-build.yml
+          timeout: 3600
+      - name: Download Build Results
+        action: github_artifact_download
+        params:
+          workflow: interactive-build.yml
+          artifact_name: ${{ format('{0}-package-{1}-{2}-{3}-{4}', 'lede', parameters.package_name, 'mediatek', 'mt7622', now(format='%Y.%m.%d')) }}
+          output_dir: ./builds/interactive
+
+  # 组合工作流
+  full_build:
+    name: Full OpenWrt Build Process
+    description: Run both auto and interactive builds
+    trigger:
+      type: manual
+    parameters:
+      - name: package_name
+        type: string
+        required: true
+        default: acctl
+        description: Package name to build
+    steps:
+      - name: Run Auto Build
+        action: workflow
+        params:
+          workflow: auto_build
+      - name: Run Interactive Build
+        action: workflow
+        params:
+          workflow: interactive_build
+          parameters:
+            package_name: ${{ parameters.package_name }}
+            config_file: configs/AP4220-config.config
+            build_firmware: false
+      - name: Collect Results
+        action: shell
+        params:
+          command: |
+            mkdir -p ./builds/full
+            cp -r ./builds/auto/* ./builds/full/
+            cp -r ./builds/interactive/* ./builds/full/
+            echo "Build results collected in ./builds/full/"
+
+# 任务配置
+jobs:
+  # 自动构建任务
+  auto_build_job:
+    name: Automatic Build Job
+    workflow: auto_build
+    schedule:
+      cron: "0 20 * * *"
+
+  # 手动构建任务
+  interactive_build_job:
+    name: Interactive Build Job
+    workflow: interactive_build
+    manual: true
+
+  # 完整构建任务
+  full_build_job:
+    name: Full Build Job
+    workflow: full_build
+    manual: true
+
+# 通知配置
+notifications:
+  success:
+    - type: github_commit_status
+      params:
+        state: success
+        context: OpenClaw Build
+    - type: email
+      params:
+        to: ${{ secrets.EMAIL }}
+        subject: "OpenWrt Build Success"
+        body: "Build completed successfully."
+  failure:
+    - type: github_commit_status
+      params:
+        state: failure
+        context: OpenClaw Build
+    - type: email
+      params:
+        to: ${{ secrets.EMAIL }}
+        subject: "OpenWrt Build Failed"
+        body: "Build failed. Please check the logs."
