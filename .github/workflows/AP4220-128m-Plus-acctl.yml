@@ -305,7 +305,7 @@ jobs:
         make diffconfig
         # 编译acctl软件包，启用详细输出
         echo "编译acctl软件包"
-        make package/openwrt-ac-ap-manager/compile V=99 || {
+        make package/ac-ap/compile V=99 || {
           echo "acctl编译失败，尝试单线程编译"
           make package/openwrt-ac-ap-manager/compile -j1 V=s
         }
