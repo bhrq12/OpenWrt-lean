@@ -269,8 +269,8 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: SSH connection to Actions
-      uses: mxschmitt/action-tmate@v3
+    # - name: SSH connection to Actions
+    #   uses: mxschmitt/action-tmate@v3
       
     # - name: Generate Firmware
     #   id: generate
