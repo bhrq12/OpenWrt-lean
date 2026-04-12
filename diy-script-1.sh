@@ -29,6 +29,9 @@ sed -i 's/192.168.1.1/11.1.1.1/g' package/base-files/files/bin/config_generate
 
 # 添加额外插件
 git clone https://github.com/bhrq12/acctl-x.git package/acctl
+
+git clone https://github.com/bhrq12/openwrt-ac-ap-manager.git package/openwrt-ac-ap-manager
+
 #git clone https://github.com/bhrq12/package.git package/mypackage
 #git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #git clone https://github.com/bhrq12/luci-app-baidupcs-web.git package/luci-app-baidupcs-web
