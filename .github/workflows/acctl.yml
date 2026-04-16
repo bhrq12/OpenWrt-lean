@@ -6,7 +6,7 @@
 # https://github.com/bhrq12/lede.git
 #===============================================
 
-name: AP4220 128m Plus acctl
+name: acctl
 
 on:
   workflow_dispatch:
