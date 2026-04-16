@@ -274,15 +274,15 @@ jobs:
         $GITHUB_WORKSPACE/scripts/preset-clash-core.sh $CLASH_KERNEL
         $GITHUB_WORKSPACE/scripts/preset-terminal-tools.sh
         
-    - name: Download DL Package
-      run: |
-        cd $OPENWRT_PATH
-        make defconfig
-        # 下载软件包，添加错误重试机制
-        make download -j8 || make download -j4 || make download -j1
-        # 清理无效的下载文件
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
+    # - name: Download DL Package
+    #   run: |
+    #     cd $OPENWRT_PATH
+    #     make defconfig
+    #     # 下载软件包，添加错误重试机制
+    #     make download -j8 || make download -j4 || make download -j1
+    #     # 清理无效的下载文件
+    #     find dl -size -1024c -exec ls -l {} \;
+    #     find dl -size -1024c -exec rm -f {} \;
 
     # ========== SSH 远程连接（调试用） ==========
     - name: SSH into Actions runner
