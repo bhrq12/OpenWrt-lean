@@ -287,8 +287,6 @@ jobs:
     # ========== SSH 远程连接（调试用） ==========
     - name: SSH into Actions runner
       uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true  # 只有你自己能登录，安全
         
     - name: Compile Packages
       run: |
