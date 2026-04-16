@@ -28,7 +28,8 @@ sed -i 's/192.168.1.1/11.1.1.1/g' package/base-files/files/bin/config_generate
 # rm -rf feeds/luci/applications/luci-app-serverchan
 
 # 添加额外插件
-git clone https://github.com/bhrq12/acctl-x.git package/acctl
+#git clone https://github.com/bhrq12/acctl-x.git package/acctl
+git clone https://github.com/bhrq12/openwrt-acctl.git package/acctl
 
 # git clone https://github.com/bhrq12/openwrt-ac-ap-manager.git package/ac-ap
 
