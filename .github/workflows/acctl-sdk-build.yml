@@ -49,9 +49,9 @@ jobs:
           sudo apt-get -qq update
           sudo apt-get -y install --no-install-recommends \
             build-essential clang gcc g++ gawk git libncurses5-dev libssl-dev \
-            python3 python3-setuptools rsync unzip xz-utils zstd quilt \
-            bc binutils bzip2 cpio flex gzip perl findutils gettext autopoint \
-            help2man m4 patch texinfo which curl wget
+            python3 python3-setuptools rsync unzip xz-utils zstd quilt bc binutils \
+            bzip2 cpio flex gzip perl findutils gettext autopoint help2man m4 \
+            patch texinfo which curl
 
       - name: Check disk before SDK download
         run: |
