@@ -285,8 +285,8 @@ jobs:
         find dl -size -1024c -exec rm -f {} \;
 
     # ========== SSH 远程连接（调试用） ==========
-    - name: SSH into Actions runner
-      uses: mxschmitt/action-tmate@v3
+    # - name: SSH into Actions runner
+    #   uses: mxschmitt/action-tmate@v3
         
     - name: Compile Packages
       run: |
