@@ -1,0 +1,217 @@
+#===============================================
+# Description: Build acctl package only using SDK (minimal disk usage)
+# File name: acctl-sdk-build.yml
+# Lisence: MIT
+# Author: bhrq12
+# Source: bhrq12/lede v2025.5.22 (lean fork)
+# Target: ipq4018 / alibaba_ap4220-128m
+#===============================================
+
+name: acctl SDK Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      acctl_version:
+        description: 'acctl version / git ref'
+        required: false
+        default: 'main'
+        type: string
+
+env:
+  # OpenWrt 源码（lean fork，基于 coolsnowwolf/lede master）
+  SOURCE_URL: https://github.com/bhrq12/lede.git
+  SOURCE_BRANCH: v2025.5.22
+  # acctl 源码
+  ACCTL_REPO: https://github.com/bhrq12/acctl-x.git
+  ACCTL_BRANCH: ${{ inputs.acctl_version || 'main' }}
+  # SDK 版本（OpenWrt 23.05.5，与 v2025.5.22 基础一致）
+  SDK_VERSION: 23.05.5
+  SDK_TARGET: ipq40xx
+  SDK_SUBTARGET: generic
+  DEVICE_TARGET: ipq40xx_generic
+  DEVICE_SUBTARGET: alibaba_ap4220-128m
+  # 编译线程数（保守值，避免 OOM）
+  BUILD_JOBS: 2
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Clean disk junk
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php \
+            /usr/local/lib/android /usr/share/hunspell /usr/share/icons /var/cache/*
+          df -hT /
+
+      - name: Install build deps
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -y install --no-install-recommends \
+            build-essential clang gcc g++ gawk git libncurses5-dev libssl-dev \
+            python3 python3-setuptools rsync unzip xz-utils zstd quilt \
+            bc binutils bzip2 cpio flex gzip perl findutils gettext autopoint \
+            help2man m4 patch texinfo which
+
+      - name: Check disk before SDK download
+        run: |
+          echo "=== Available disk ==="
+          df -hT /
+          echo "Free GB: $(df --output=avail -B1G / | tail -1)G"
+
+      - name: Download OpenWrt SDK
+        run: |
+          SDK_NAME="openwrt-sdk-${SDK_VERSION}-${SDK_TARGET}-${SDK_SUBTARGET}_gcc-13.3.x_musl_eabi.Linux-x86_64.tar.xz"
+          SDK_URL="https://downloads.openwrt.org/releases/${SDK_VERSION}/targets/${SDK_TARGET}/${SDK_SUBTARGET}/${SDK_NAME}"
+          SDK_SHA256_URL="${SDK_URL}.sha256"
+
+          echo "Downloading SDK: $SDK_URL"
+          curl -fsSL --retry 3 --retry-delay 10 -o "sdk.tar.xz" "$SDK_URL"
+          echo "SDK downloaded: $(du -sh sdk.tar.xz)"
+
+      - name: Verify SDK checksum
+        run: |
+          EXPECTED_SHA256=$(curl -fsSL "$SDK_SHA256_URL" | awk '{print $1}')
+          ACTUAL_SHA256=$(sha256sum sdk.tar.xz | awk '{print $1}')
+          echo "Expected: $EXPECTED_SHA256"
+          echo "Actual:   $ACTUAL_SHA256"
+          if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+            echo "ERROR: SDK checksum mismatch!"
+            exit 1
+          fi
+          echo "SDK checksum OK"
+
+      - name: Extract SDK
+        run: |
+          mkdir -p openwrt-sdk
+          tar -xf sdk.tar.xz -C openwrt-sdk --strip-components=1
+          rm sdk.tar.xz
+          echo "SDK extracted: $(du -sh openwrt-sdk)"
+          ls openwrt-sdk/
+          echo "SDK size: $(du -sh openwrt-sdk)"
+          df -hT /
+
+      - name: Clone lean source (for .config and feeds.conf.default)
+        run: |
+          git clone $SOURCE_URL -b $SOURCE_BRANCH --depth=1 lean-src
+          cd lean-src
+          # Copy feeds.conf.default
+          cp feeds.conf.default ../openwrt-sdk/feeds.conf.default 2>/dev/null || true
+          # Copy AP4220 config
+          cp configs/AP4220-config.config ../openwrt-sdk/.config
+          echo "CONFIG_ALL=y" >> ../openwrt-sdk/.config
+          echo "CONFIG_ALL_NONSHARED=y" >> ../openwrt-sdk/.config
+          echo "Config applied: $(wc -l < ../openwrt-sdk/.config) lines"
+          cd ..
+          rm -rf lean-src
+
+      - name: Install feeds (minimal - only needed packages)
+        run: |
+          cd openwrt-sdk
+          # Update feeds
+          ./scripts/feeds update packages luci
+          # Install ONLY the feeds we need, not -a (avoids downloading thousands of packages)
+          ./scripts/feeds install libuci-lua libjson-c luci luci-lib-web luci-lib-json
+          # Check what was installed
+          echo "=== Installed packages ==="
+          ls package/feeds/packages/ 2>/dev/null | head -20
+          echo "..."
+          ls package/feeds/luci/ 2>/dev/null | head -20
+
+      - name: Clean disk after feeds
+        run: |
+          df -hT /
+          echo "--- Removing apt cache ---"
+          sudo apt-get -qq clean
+          df -hT /
+
+      - name: Clone acctl-x into SDK package dir
+        run: |
+          cd openwrt-sdk
+          # Remove old acctl if exists
+          rm -rf package/acctl package/acctl-x
+          # Clone acctl-x (Makefile at repo root → goes to package/acctl/)
+          git clone $ACCTL_REPO -b $ACCTL_BRANCH --depth=1 package/acctl
+          echo "=== acctl package structure ==="
+          ls package/acctl/
+          head -5 package/acctl/Makefile
+
+      - name: Prepare acctl build directory
+        run: |
+          cd openwrt-sdk
+          mkdir -p package/acctl/src
+          # acctl Makefile is at repo root, build system expects it at package/acctl/Makefile
+          # The Makefile has Build/Prepare that copies src/luci/files → PKG_BUILD_DIR
+          # Create the build directory structure manually
+          mkdir -p build_dir/target-arm_cortex-a7+neon_musl_eabi/acctl-2.0
+          mkdir -p staging_dir/target-arm_cortex-a7+neon_musl_eabi
+          echo "Build dirs ready"
+
+      - name: Download acctl dependencies
+        run: |
+          cd openwrt-sdk
+          # Download libjson-c source (dependency of libuci-lua)
+          make -j$BUILD_JOBS download PKG_BUILD_DIR=/dev/null \
+            PACKAGES="libjson-c" 2>&1 | tail -5 || true
+          # Alternative: just ensure staging_dir has the libs
+          ls staging_dir/target-*/usr/lib/ 2>/dev/null | head -10
+          ls staging_dir/target-*/usr/include/ 2>/dev/null | head -10
+
+      - name: Compile acctl
+        id: compile
+        run: |
+          cd openwrt-sdk
+          echo "=== Starting acctl compile ==="
+          make package/acctl/compile V=99 -j$BUILD_JOBS 2>&1 | tee compile.log
+          COMPILE_EXIT=$?
+          echo "Compile exit code: $COMPILE_EXIT"
+
+          if [ $COMPILE_EXIT -ne 0 ]; then
+            echo "=== Compile failed, trying single thread ==="
+            make package/acctl/compile V=s -j1 2>&1 | tee compile-single.log
+          fi
+
+      - name: Check compile result
+        run: |
+          cd openwrt-sdk
+          echo "=== Build artifacts ==="
+          find bin -name "*.ipk" -newer package/acctl/Makefile 2>/dev/null
+          find . -name "acctl*.ipk" 2>/dev/null
+          ls -la bin/packages/*/base/acctl*.ipk 2>/dev/null || echo "No acctl.ipk found"
+          ls -la bin/packages/*/luci/acctl*.ipk 2>/dev/null || echo "No acctl luci ipk"
+
+          echo ""
+          echo "=== Check if build succeeded ==="
+          if ls bin/packages/*/base/acctl*.ipk 2>/dev/null; then
+            echo "✅ acctl build SUCCESS"
+            echo "ipk_path=$(find bin -name 'acctl*.ipk' | head -1)" >> $GITHUB_OUTPUT
+          else
+            echo "❌ acctl build FAILED"
+            echo "=== Last 50 lines of compile log ==="
+            tail -50 compile.log 2>/dev/null || tail -50 compile-single.log 2>/dev/null
+            exit 1
+          fi
+
+      - name: Upload acctl.ipk artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: acctl-ipk-${{ env.DEVICE_SUBTARGET }}-${{ github.run_number }}
+          path: |
+            openwrt-sdk/bin/packages/*/base/acctl*.ipk
+            openwrt-sdk/bin/packages/*/luci/acctl*.ipk
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "=== Build Summary ==="
+          echo "acctl package built successfully"
+          echo "Target: ipq4018 / alibaba_ap4220-128m"
+          echo "SDK: OpenWrt ${{ env.SDK_VERSION }}"
+          echo "Source: bhrq12/lede ${{ env.SOURCE_BRANCH }}"
+          echo "acctl: bhrq12/acctl-x ${{ env.ACCTL_BRANCH }}"
+          ls -lh openwrt-sdk/bin/packages/*/base/acctl*.ipk
+          df -hT /
