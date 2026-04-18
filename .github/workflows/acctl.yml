@@ -285,23 +285,23 @@ jobs:
     #     find dl -size -1024c -exec rm -f {} \;
 
     # ========== SSH 远程连接（调试用） ==========
-    - name: SSH into Actions runner
-      uses: mxschmitt/action-tmate@v3
+    # - name: SSH into Actions runner
+    #   uses: mxschmitt/action-tmate@v3
         
-    - name: Compile Packages
-      run: |
-        cd $OPENWRT_PATH
-        echo "开始编译软件包，使用 $(nproc) 线程"
-        make diffconfig
-        # 编译acctl软件包，启用详细输出
-        echo "编译acctl软件包"
-        make package/acctl/compile V=99 || {
-          echo "acctl编译失败，尝试单线程编译"
-          make package/acctl/compile -j1 V=s
-        }
-        # 生成软件包索引
-        echo "生成软件包索引"
-        make package/index
+    # - name: Compile Packages
+    #   run: |
+    #     cd $OPENWRT_PATH
+    #     echo "开始编译软件包，使用 $(nproc) 线程"
+    #     make diffconfig
+    #     # 编译acctl软件包，启用详细输出
+    #     echo "编译acctl软件包"
+    #     make package/acctl/compile V=99 || {
+    #       echo "acctl编译失败，尝试单线程编译"
+    #       make package/acctl/compile -j1 V=s
+    #     }
+    #     # 生成软件包索引
+    #     echo "生成软件包索引"
+    #     make package/index
         
     - name: Check Space Usage
       if: always()
@@ -312,19 +312,19 @@ jobs:
         echo -e "\n"
         sudo btrfs filesystem usage $GITHUB_WORKSPACE
         
-    - name: Upload Bin Directory
-      if: steps.generate.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      uses: actions/upload-artifact@main
-      with:
-        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.OPENWRT_PATH }}/bin
+    # - name: Upload Bin Directory
+    #   if: steps.generate.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+    #   uses: actions/upload-artifact@main
+    #   with:
+    #     name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+    #     path: ${{ env.OPENWRT_PATH }}/bin
 
     - name: Organize Files
       if: steps.generate.outputs.status == 'success'
       run: |
         cd $OPENWRT_PATH/
         tar -zcf OpenWRT_all.tar.gz ./
-        按 200MB 分卷（可自定义大小）
+        # 按 500MB 分卷（可自定义大小）
         split -b 500M OpenWRT_all.tar.gz OpenWRT_all.tar.gz.part
 
         mv -f OpenWRT_all.tar.gz.* $OPENWRT_PATH/bin/packages/*/*/
