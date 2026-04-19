@@ -283,71 +283,35 @@ jobs:
         # 清理无效的下载文件
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-        
-    - name: Compile Packages
-      run: |
-        cd $OPENWRT_PATH
-    #     echo "开始编译软件包，使用 $(nproc) 线程"
-    #     make diffconfig
-    #     # 编译acctl软件包，启用详细输出
-    #     echo "编译acctl软件包"
-    #     make package/acctl/compile V=99 || {
-    #       echo "acctl编译失败，尝试单线程编译"
-    #       make package/acctl/compile -j1 V=s
-    #     }
-    #     # 生成软件包索引
-    #     echo "生成软件包索引"
-    #     make package/index
-        
-    - name: Check Space Usage
-      if: always()
-      run: |
-        lsblk -f
-        echo -e "\n"
-        df -hT
-        echo -e "\n"
-        sudo btrfs filesystem usage $GITHUB_WORKSPACE
-        
-    - name: Upload Bin Directory
-      # if: steps.generate.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      uses: actions/upload-artifact@main
-      with:
-        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.OPENWRT_PATH }}/bin
 
-    - name: Organize Files
-      # if: steps.generate.outputs.status == 'success'
+    # 打包整个 OpenWRT 源码目录，分卷 500MB
+    - name: Backup OpenWRT Source Code (split 500MB)
       run: |
-        # cd $OPENWRT_PATH/
-        # tar -zcvf - ./* | split -b 500M - OpenWRT_all.tar.gz.part
-        # mv -f OpenWRT_all.tar.gz.* $OPENWRT_PATH/bin/packages/*/*/
-        cd $OPENWRT_PATH/bin/targets/*/*
-        cat sha256sums
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-
-    # ========== SSH 远程连接（调试用） ==========
-    - name: SSH into Actions runner
-      uses: mxschmitt/action-tmate@v3
-        
-    - name: Upload Firmware To Artifact
-      # if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
-      uses: actions/upload-artifact@main
-      with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE_PATH }}
-
-    - name: Upload Firmware To Release
-      # if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
+        cd ${{ env.OPENWRT_PATH }}
+        # 打包当前目录（整个源码），并按 500MB 分卷切割
+        tar -zcvf - ./* | split -b 500M - OpenWRT_Source_${{ env.FILE_DATE }}.tar.gz.part
+        # 将分卷包移动到 bin 目录，方便统一上传
+        mkdir -p bin/source-backup
+        mv OpenWRT_Source_*.tar.gz.part* bin/source-backup/
+    
+    # 上传到 GitHub Releases（包含源码分卷 + 固件）
+    - name: Upload All To Release
       uses: ncipollo/release-action@v1
       with:
-        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+        name: OpenWRT 源码备份 + 固件 ${{ env.DATE }}
         allowUpdates: true
         tag: ${{ env.FIRMWARE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ${{ env.FIRMWARE_PATH }}/*
+        # 同时上传：源码分卷包 + 固件
+        artifacts: |
+          ${{ env.OPENWRT_PATH }}/bin/source-backup/*
+          ${{ env.FIRMWARE_PATH }}/*
         body: |
-          **This is Temporary Firmware for Armvirt 64**
-          * 这是 AP4220_PLUS 多功能版打包临时固件，不可直刷
-          直刷固件参见 Tag 名为 AP4220_PLUS 的 Releases
-          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/coolsnowwolf/lede)更新记录】
+          ## OpenWRT 源码备份（完整目录）
+          打包方式：tar + gzip + split 500MB 分卷
+          合并命令（Linux）：
+          cat OpenWRT_Source_*.tar.gz.part* | tar -zxvf -
+    
+          ## 固件
           ${{ env.VERSION_INFO }}
+
