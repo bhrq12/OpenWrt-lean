@@ -284,34 +284,29 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    # 打包整个 OpenWRT 源码目录，分卷 500MB
+    # 只备份 OpenWRT 源码目录，打包 500MB 分卷
     - name: Backup OpenWRT Source Code (split 500MB)
       run: |
         cd ${{ env.OPENWRT_PATH }}
-        # 打包当前目录（整个源码），并按 500MB 分卷切割
+        # 打包整个源码目录，按 500MB 分卷切割
         tar -zcvf - ./* | split -b 500M - OpenWRT_Source_${{ env.FILE_DATE }}.tar.gz.part
-        # 将分卷包移动到 bin 目录，方便统一上传
+        # 创建存放目录
         mkdir -p bin/source-backup
         mv OpenWRT_Source_*.tar.gz.part* bin/source-backup/
     
-    # 上传到 GitHub Releases（包含源码分卷 + 固件）
-    - name: Upload All To Release
+    # 只上传【源码分卷】到 GitHub Releases
+    - name: Upload Source Code To Release
       uses: ncipollo/release-action@v1
       with:
-        name: OpenWRT 源码备份 + 固件 ${{ env.DATE }}
+        name: OpenWRT 源码备份 ${{ env.DATE }}
         allowUpdates: true
         tag: ${{ env.FIRMWARE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
-        # 同时上传：源码分卷包 + 固件
-        artifacts: |
-          ${{ env.OPENWRT_PATH }}/bin/source-backup/*
-          ${{ env.FIRMWARE_PATH }}/*
+        # 只上传源码分卷，不上传固件
+        artifacts: ${{ env.OPENWRT_PATH }}/bin/source-backup/*
         body: |
-          ## OpenWRT 源码备份（完整目录）
-          打包方式：tar + gzip + split 500MB 分卷
-          合并命令（Linux）：
+          ## OpenWRT 完整源码备份
+          打包方式：tar.gz + 500MB 分卷
+          
+          ### 合并解压命令（Linux / Windows Git Bash）
           cat OpenWRT_Source_*.tar.gz.part* | tar -zxvf -
-    
-          ## 固件
-          ${{ env.VERSION_INFO }}
-
