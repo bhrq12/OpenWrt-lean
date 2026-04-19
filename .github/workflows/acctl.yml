@@ -318,9 +318,9 @@ jobs:
     - name: Organize Files
       # if: steps.generate.outputs.status == 'success'
       run: |
-        cd $OPENWRT_PATH/
-        tar -zcvf - ./* | split -b 500M - OpenWRT_all.tar.gz.part
-        mv -f OpenWRT_all.tar.gz.* $OPENWRT_PATH/bin/packages/*/*/
+        # cd $OPENWRT_PATH/
+        # tar -zcvf - ./* | split -b 500M - OpenWRT_all.tar.gz.part
+        # mv -f OpenWRT_all.tar.gz.* $OPENWRT_PATH/bin/packages/*/*/
         cd $OPENWRT_PATH/bin/targets/*/*
         cat sha256sums
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
