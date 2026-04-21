@@ -292,8 +292,10 @@ jobs:
         
         # 打包当前目录下所有内容 = 仅 OpenWRT 源码
         # 输出文件直接放在源码目录的 source-backup 里
-        mkdir -p source-backup
-        tar -zcvf - ./* | split -b 500M - source-backup/OpenWRT_Source_${{ env.FILE_DATE }}.tar.gz.part
+        mkdir -p source-backup 
+        make toolchain/install -j4 V=s
+        make -k package/compile -j4 V=s 
+        tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part ; exit
     
     # 【修复】只上传源码分卷到 Release
     - name: Upload Source To Release
