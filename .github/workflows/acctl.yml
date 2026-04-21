@@ -279,7 +279,7 @@ jobs:
         cd $OPENWRT_PATH
         make defconfig
         # 下载软件包，添加错误重试机制
-        make download -j8 || make download -j4 || make download -j1
+        make download -j4 || make download -j4 || make download -j1
         # 清理无效的下载文件
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -294,8 +294,8 @@ jobs:
         # 输出文件直接放在源码目录的 source-backup 里
         mkdir -p source-backup 
         make toolchain/install -j4 V=s
-        make -k package/compile -j4 V=s 
-        tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part ; exit
+        make package/compile -j4 V=s 
+        tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
     
     # 【修复】只上传源码分卷到 Release
     - name: Upload Source To Release
