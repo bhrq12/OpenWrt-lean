@@ -295,21 +295,37 @@ jobs:
         mkdir -p source-backup
         # tar -zcvf - ./* | split -b 500M - source-backup/OpenWRT_Source_${{ env.FILE_DATE }}.tar.gz.part
 
-    - name: Setup tmate session (SSH Debug)
-      uses: mxschmitt/action-tmate@v3
+    # 编译 OpenWRT 工具链（核心基础，必须成功）
+    - name: Compile OpenWRT Toolchain
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        make toolchain/install -j8 V=s || make toolchain/install -j4 V=s || make toolchain/install -j1 V=s
+
+    # 编译所有软件包（跳过错误继续）
+    - name: Compile All Packages
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        make -k package/compile -j8 V=s || make -k package/compile -j4 V=s || make -k package/compile -j1 V=s
+
+    # 打包备份源码（500M分卷 + 自动日期 + 排除循环目录）
+    - name: Backup OpenWRT Source (split 500MB)
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        mkdir -p source-backup
+        tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
     
     # 【修复】只上传源码分卷到 Release
     - name: Upload Source To Release
       uses: ncipollo/release-action@v1
       with:
-        name: OpenWRT 源码备份
+        name: OpenWRT 源码备份（IPQ4018）
         allowUpdates: true
         tag: ${{ env.FIRMWARE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
         # 只上传分卷压缩包，绝对不上传系统目录
         artifacts: ${{ env.OPENWRT_PATH }}/source-backup/*
         body: |
-          ## OpenWRT 源码备份
+          ## OpenWRT 源码备份（IPQ4018）
           打包方式：tar.gz 500MB 分卷
           
           ### 合并解压命令
