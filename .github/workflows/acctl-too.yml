@@ -126,7 +126,43 @@ jobs:
         make defconfig
         echo -e "$(nproc) thread compile"
         make tools/compile -j$(nproc) || make tools/compile -j1 V=s
-        
+            
+    # 节点 1：清理内核残留（修复内核目录缺失）
+    - name: Clean Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make target/linux/clean
+    
+    # 节点 2：下载内核源码
+    - name: Download Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make target/linux/download -j$(nproc) V=s
+    
+    # 节点 3：准备内核源码（解压+配置，修复 .config / compiler.h 缺失）
+    - name: Prepare Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make target/linux/prepare V=s
+    
+    # 节点 4：重新生成编译配置（确保工具链+内核路径正确）
+    - name: Regenerate Defconfig
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make defconfig
+    
+    # 节点 5：下载所有工具链依赖（防止编译中断）
+    - name: Download Toolchain Dependencies
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make download -j$(nproc)
+    
+    # 节点 6：编译工具链（主节点，完全对齐你提供的格式）
     - name: Compile Toolchain
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
       run: |
@@ -134,7 +170,14 @@ jobs:
         echo -e "$(nproc) thread compile"
         make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
         rm -rf .config* dl bin
-        
+    
+    # 节点 7：安装工具链（可选，让工具链生效）
+    - name: Install Toolchain
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        cd $OPENWRT_PATH
+        make toolchain/install V=s
+
     - name: Generate Toolchain Image
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
       run: |
