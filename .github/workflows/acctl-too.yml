@@ -6,7 +6,7 @@
 # https://github.com/bhrq12/lede.git
 #===============================================
 
-name: acctl
+name: acctl too
 
 on:
   workflow_dispatch:
