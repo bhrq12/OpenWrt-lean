@@ -284,17 +284,23 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    # 【修复】只打包 OpenWRT 源码目录，严格限定路径，500MB 分卷
-    - name: Backup OpenWRT Source Only (split 500MB)
+    # 编译 OpenWRT 工具链（核心基础，必须成功）
+    - name: Compile OpenWRT Toolchain
       run: |
-        # 强制进入源码目录，绝对不允许打包到系统根目录
         cd "${{ env.OPENWRT_PATH }}" || exit 1
-        
-        # 打包当前目录下所有内容 = 仅 OpenWRT 源码
-        # 输出文件直接放在源码目录的 source-backup 里
-        mkdir -p source-backup 
         make toolchain/install -j8 V=s || make toolchain/install -j4 V=s || make toolchain/install -j1 V=s
+
+    # 编译所有软件包（跳过错误继续）
+    - name: Compile All Packages
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
         make -k package/compile -j8 V=s || make -k package/compile -j4 V=s || make -k package/compile -j1 V=s
+
+    # 打包备份源码（500M分卷 + 自动日期 + 排除循环目录）
+    - name: Backup OpenWRT Source (split 500MB)
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        mkdir -p source-backup
         tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
     
     # 【修复】只上传源码分卷到 Release
