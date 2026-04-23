@@ -15,7 +15,7 @@ on:
 
 env:
   SOURCE_URL: https://github.com/bhrq12/lede.git
-  SOURCE_BRANCH: master
+  SOURCE_BRANCH: v2025.5.22
   CONFIG_FILE: configs/AP4220-config.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
