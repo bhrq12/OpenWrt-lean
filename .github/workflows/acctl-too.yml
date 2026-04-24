@@ -333,6 +333,12 @@ jobs:
         cd "${{ env.OPENWRT_PATH }}" || exit 1
         make toolchain/install -j8 V=s || make toolchain/install -j4 V=s || make toolchain/install -j1 V=s
 
+    # 编译完整固件
+    - name: Compile All Packages
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        make -j8 V=s || make -j4 V=s || make -j1 V=s
+        
     # 编译所有软件包（跳过错误继续）
     # - name: Compile All Packages
     #   run: |
@@ -344,7 +350,7 @@ jobs:
       run: |
         cd "${{ env.OPENWRT_PATH }}" || exit 1
         mkdir -p source-backup
-        tar -zcvf - --exclude=./source-backup ./* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
+        tar -zcvf - --exclude=./source-backup ./bin/* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
     
     # 【修复】只上传源码分卷到 Release
     - name: Upload Source To Release
