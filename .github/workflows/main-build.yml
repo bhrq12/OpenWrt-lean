@@ -8,8 +8,8 @@ name: OpenWrt Automatic Build
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: 0 20 * * *
+  # schedule:
+    # - cron: 0 20 * * *
 
 env:
   SOURCE_URL: https://github.com/bhrq12/lede.git
