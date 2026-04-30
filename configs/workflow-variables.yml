@@ -1,0 +1,73 @@
+# ==============================================
+# OpenWRT 工具链编译工作流配置文件
+# ==============================================
+# 此文件集中管理工作流所需的所有配置变量
+# 修改后需确保工作流文件正确引用
+
+# ------------------------------
+# 源码配置
+# ------------------------------
+source:
+  url: "https://github.com/openwrt/openwrt.git"  # OpenWRT 源码仓库地址
+  branch: "v24.10.6"                              # 源码分支/版本
+
+# ------------------------------
+# 编译配置
+# ------------------------------
+build:
+  config_file: "configs/AP4220-config.config"     # 编译配置文件路径
+  diy_script: "diy-script-1.sh"                   # 自定义脚本（预留）
+
+# ------------------------------
+# Release 配置
+# ------------------------------
+release:
+  toolchain_tag: "Toolchain"                       # 工具链 Release 标签名
+  firmware_tag: "ROOTFS_PLUS"                      # 固件 Release 标签（预留）
+  openwrt_tag: "AP4220_128m_PLUS_acctl"           # OpenWRT Release 标签（预留）
+
+# ------------------------------
+# 功能开关（预留）
+# ------------------------------
+feature:
+  upload_bin_dir: false                            # 是否上传二进制目录
+  firmware_release: true                           # 是否发布固件
+  openwrt_release: true                            # 是否发布 OpenWRT
+
+# ------------------------------
+# 架构配置（预留）
+# ------------------------------
+architecture:
+  clash_kernel: "arm64"                            # Clash 内核架构
+
+# ------------------------------
+# 系统配置
+# ------------------------------
+system:
+  timezone: "Asia/Shanghai"                        # 时区设置
+
+# ------------------------------
+# 缓存配置
+# ------------------------------
+cache:
+  enable: true                                     # 是否启用缓存
+  source_ttl: "7d"                                # 源码缓存有效期
+  feeds_ttl: "7d"                                 # Feeds 缓存有效期
+  dl_ttl: "30d"                                   # 依赖下载缓存有效期
+
+# ------------------------------
+# 编译配置
+# ------------------------------
+compilation:
+  threads: "auto"                                  # 编译线程数（auto 表示自动检测）
+  timeout_tools: 120                               # 工具编译超时时间（分钟）
+  timeout_toolchain: 180                           # 工具链编译超时时间（分钟）
+  timeout_download: 120                            # 依赖下载超时时间（分钟）
+
+# ------------------------------
+# 输出配置
+# ------------------------------
+output:
+  toolchain_split_size: "1900M"                    # 工具链镜像分卷大小
+  source_backup_split_size: "500M"                 # 源码备份分卷大小
+  compression_level: 15                            # zstd 压缩级别
