@@ -136,7 +136,7 @@ jobs:
     # ------------------------------
     - name: Cache OpenWRT Source
       id: cache-source  # 步骤 ID，用于后续引用
-      uses: actions/cache@v4.1.2  # 使用官方缓存动作，版本 v4.1.2（支持 Node.js 24）
+      uses: actions/cache@v4  # 使用官方缓存动作，版本 v4（支持 Node.js 24）
       with:
         path: |
           workspace/openwrt  # 缓存路径：OpenWRT 源码目录
@@ -288,7 +288,7 @@ jobs:
     - name: Cache Feeds
       id: cache-feeds
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: actions/cache@v4.1.2  # 支持 Node.js 24
+      uses: actions/cache@v4  # 支持 Node.js 24
       with:
         path: |
           ${{ env.OPENWRT_PATH }}/feeds  # 缓存路径：feeds 目录
@@ -316,7 +316,7 @@ jobs:
     - name: Cache DL Directory
       id: cache-dl
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: actions/cache@v4.1.2  # 支持 Node.js 24
+      uses: actions/cache@v4  # 支持 Node.js 24
       with:
         path: |
           ${{ env.OPENWRT_PATH }}/dl  # 缓存路径：下载目录
@@ -423,7 +423,7 @@ jobs:
     # ------------------------------
     - name: Delete Old Toolchain Assets
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: mknejp/delete-release-assets@v2  # 使用第三方动作删除 Release 资产（支持 Node.js 24）
+      uses: mknejp/delete-release-assets@v1  # 使用第三方动作删除 Release 资产
       with:
         token: ${{ secrets.GITHUB_TOKEN }}    # GitHub 令牌（自动提供）
         tag: ${{ env.TOOLCHAIN_TAG }}         # Release 标签
