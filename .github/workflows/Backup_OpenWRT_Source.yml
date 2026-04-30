@@ -63,7 +63,7 @@ jobs:
     # 步骤 1: 检出仓库代码
     # ------------------------------
     - name: Checkout
-      uses: actions/checkout@v4  # 使用官方 checkout 动作，版本 v4
+      uses: actions/checkout@v4.2.2  # 使用官方 checkout 动作，版本 v4.2.2（支持 Node.js 24）
       # 作用：将当前仓库代码下载到 Runner 中
 
     # ------------------------------
@@ -136,7 +136,7 @@ jobs:
     # ------------------------------
     - name: Cache OpenWRT Source
       id: cache-source  # 步骤 ID，用于后续引用
-      uses: actions/cache@v4  # 使用官方缓存动作
+      uses: actions/cache@v4.1.2  # 使用官方缓存动作，版本 v4.1.2（支持 Node.js 24）
       with:
         path: |
           workspace/openwrt  # 缓存路径：OpenWRT 源码目录
@@ -288,7 +288,7 @@ jobs:
     - name: Cache Feeds
       id: cache-feeds
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: actions/cache@v4
+      uses: actions/cache@v4.1.2  # 支持 Node.js 24
       with:
         path: |
           ${{ env.OPENWRT_PATH }}/feeds  # 缓存路径：feeds 目录
@@ -316,7 +316,7 @@ jobs:
     - name: Cache DL Directory
       id: cache-dl
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: actions/cache@v4
+      uses: actions/cache@v4.1.2  # 支持 Node.js 24
       with:
         path: |
           ${{ env.OPENWRT_PATH }}/dl  # 缓存路径：下载目录
@@ -423,7 +423,7 @@ jobs:
     # ------------------------------
     - name: Delete Old Toolchain Assets
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: mknejp/delete-release-assets@v1  # 使用第三方动作删除 Release 资产
+      uses: mknejp/delete-release-assets@v2  # 使用第三方动作删除 Release 资产（支持 Node.js 24）
       with:
         token: ${{ secrets.GITHUB_TOKEN }}    # GitHub 令牌（自动提供）
         tag: ${{ env.TOOLCHAIN_TAG }}         # Release 标签
@@ -437,7 +437,7 @@ jobs:
     # ------------------------------
     - name: Upload Toolchain Image
       if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'  # 条件：需要重建工具链
-      uses: ncipollo/release-action@v1  # 使用第三方动作发布 Release
+      uses: ncipollo/release-action@v1.14.0  # 使用第三方动作发布 Release（支持 Node.js 24）
       with:
         name: Toolchain-Image           # Release 名称
         allowUpdates: true              # 允许更新已存在的 Release
