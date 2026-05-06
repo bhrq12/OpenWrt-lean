@@ -168,8 +168,8 @@ jobs:
         mkdir $GITHUB_WORKSPACE/tmp && chmod 777 $GITHUB_WORKSPACE/tmp
         # 复制 /tmp 内容，但排除系统目录（避免权限问题）
         sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp 2>/dev/null || true
-        # 删除可能被复制的系统权限目录
-        sudo rm -rf $GITHUB_WORKSPACE/tmp/snap-private-tmp $GITHUB_WORKSPACE/tmp/systemd-private-* 2>/dev/null || true
+        # 递归删除所有 root 权限的文件和目录（避免后续清理失败）
+        sudo find $GITHUB_WORKSPACE/tmp -user root -delete 2>/dev/null || true
         # 绑定挂载到 /tmp
         sudo mount -B $GITHUB_WORKSPACE/tmp /tmp && df -hT
 
