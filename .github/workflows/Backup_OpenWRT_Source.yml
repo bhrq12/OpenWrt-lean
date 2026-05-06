@@ -63,7 +63,7 @@ jobs:
     # 步骤 1: 检出仓库代码
     # ------------------------------
     - name: Checkout
-      uses: actions/checkout@v4.2.2  # 使用官方 checkout 动作，版本 v4.2.2（支持 Node.js 24）
+      uses: actions/checkout@v4  # 使用官方 checkout 动作，版本 v4.2.2（支持 Node.js 24）
       # 作用：将当前仓库代码下载到 Runner 中
 
     # ------------------------------
