@@ -191,22 +191,26 @@ jobs:
         sudo mkfs.btrfs -L combinedisk $LV_DEVNAME
         # 挂载到工作目录
         sudo mount -o compress=zstd $LV_DEVNAME $GITHUB_WORKSPACE
-        # 修改所有者
+        # 修改所有者（确保所有文件都归 runner 用户所有）
         sudo chown -R runner:runner $GITHUB_WORKSPACE
-        # 创建临时目录并复制内容
-        mkdir $GITHUB_WORKSPACE/tmp && chmod 777 $GITHUB_WORKSPACE/tmp
-        # 复制 /tmp 内容，但排除系统目录（避免权限问题）
-        sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp 2>/dev/null || true
-        # 递归删除所有 root 权限的文件和目录（避免后续清理失败）
-        sudo find $GITHUB_WORKSPACE/tmp -user root -delete 2>/dev/null || true
+        # 创建临时目录，直接设置正确权限（避免后续权限问题）
+        mkdir -p $GITHUB_WORKSPACE/tmp
+        chown runner:runner $GITHUB_WORKSPACE/tmp
+        chmod 775 $GITHUB_WORKSPACE/tmp
+        # 复制 /tmp 内容，但仅复制普通文件（排除系统服务创建的目录）
+        find /tmp -maxdepth 1 -type f -exec sudo cp -p {} $GITHUB_WORKSPACE/tmp/ \; 2>/dev/null || true
+        # 确保复制的文件权限正确
+        sudo chown -R runner:runner $GITHUB_WORKSPACE/tmp
         # 绑定挂载到 /tmp
         sudo mount -B $GITHUB_WORKSPACE/tmp /tmp && df -hT
 
     # ----------------------------------------------
     # 步骤 2.5: 预清理工作目录（解决 checkout 权限问题）
     # 作用：删除上一次运行留下的 root 权限文件，确保 checkout 能正常执行
+    # 容错设置：即使清理失败也不中断流程
     # ----------------------------------------------
     - name: Pre-Clean Workspace
+      continue-on-error: true
       run: |
         # 删除工作目录中所有 root 用户的文件
         sudo find $GITHUB_WORKSPACE -type f -user root -delete 2>/dev/null || true
