@@ -63,7 +63,7 @@ jobs:
     # 步骤 1: 检出仓库代码
     # ------------------------------
     - name: Checkout
-      uses: actions/checkout@v5  # 使用官方 checkout 动作，版本 v4.2.2（支持 Node.js 24）
+      uses: actions/checkout@v5      # 使用官方 checkout 动作，版本 v4.2.2（支持 Node.js 24）
       # 作用：将当前仓库代码下载到 Runner 中
 
     # ------------------------------
@@ -71,30 +71,62 @@ jobs:
     # ------------------------------
     - name: Load Configuration
       run: |
-        # 安装 yq 用于解析 YAML 配置文件
-        if ! command -v yq &> /dev/null; then
-          sudo apt-get update && sudo apt-get install -y yq
+        set -eo pipefail
+        
+        # 检查配置文件是否存在
+        if [ ! -f "$CONFIG_FILE_PATH" ]; then
+          echo "Error: Configuration file not found at $CONFIG_FILE_PATH"
+          exit 1
         fi
         
-        # 从配置文件读取变量并设置为环境变量
-        echo "SOURCE_URL=$(yq -r '.source.url' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "SOURCE_BRANCH=$(yq -r '.source.branch' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "CONFIG_FILE=$(yq -r '.build.config_file' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "DIY_SCRIPT=$(yq -r '.build.diy_script' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "TOOLCHAIN_TAG=$(yq -r '.release.toolchain_tag' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "FIRMWARE_TAG=$(yq -r '.release.firmware_tag' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "OPENWRT_TAG=$(yq -r '.release.openwrt_tag' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "UPLOAD_BIN_DIR=$(yq -r '.feature.upload_bin_dir' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "FIRMWARE_RELEASE=$(yq -r '.feature.firmware_release' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "OPENWRT_RELEASE=$(yq -r '.feature.openwrt_release' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
-        echo "CLASH_KERNEL=$(yq -r '.architecture.clash_kernel' "$CONFIG_FILE_PATH")" >> "$GITHUB_ENV"
+        # 安装 pyyaml 模块
+        pip install pyyaml
         
-        # 输出已加载的配置（调试用）
-        echo "Loaded configuration:"
-        echo "  SOURCE_URL: $SOURCE_URL"
-        echo "  SOURCE_BRANCH: $SOURCE_BRANCH"
-        echo "  CONFIG_FILE: $CONFIG_FILE"
-        echo "  TOOLCHAIN_TAG: $TOOLCHAIN_TAG"
+        # 使用 Python 直接解析 YAML（更可靠）
+        python3 << 'PYTHON_SCRIPT'
+import yaml
+import os
+
+config_path = os.environ.get('CONFIG_FILE_PATH', 'config/workflow-variables.yml')
+
+with open(config_path, 'r') as f:
+    config = yaml.safe_load(f)
+
+# 读取配置值
+source_url = config.get('source', {}).get('url', '')
+source_branch = config.get('source', {}).get('branch', '')
+config_file = config.get('build', {}).get('config_file', '')
+diy_script = config.get('build', {}).get('diy_script', '')
+toolchain_tag = config.get('release', {}).get('toolchain_tag', '')
+firmware_tag = config.get('release', {}).get('firmware_tag', '')
+openwrt_tag = config.get('release', {}).get('openwrt_tag', '')
+upload_bin_dir = config.get('feature', {}).get('upload_bin_dir', False)
+firmware_release = config.get('feature', {}).get('firmware_release', False)
+openwrt_release = config.get('feature', {}).get('openwrt_release', False)
+clash_kernel = config.get('architecture', {}).get('clash_kernel', '')
+
+# 输出到 GitHub ENV 文件
+env_file = os.environ.get('GITHUB_ENV', '/dev/stdout')
+with open(env_file, 'a') as f:
+    f.write(f"SOURCE_URL={source_url}\n")
+    f.write(f"SOURCE_BRANCH={source_branch}\n")
+    f.write(f"CONFIG_FILE={config_file}\n")
+    f.write(f"DIY_SCRIPT={diy_script}\n")
+    f.write(f"TOOLCHAIN_TAG={toolchain_tag}\n")
+    f.write(f"FIRMWARE_TAG={firmware_tag}\n")
+    f.write(f"OPENWRT_TAG={openwrt_tag}\n")
+    f.write(f"UPLOAD_BIN_DIR={upload_bin_dir}\n")
+    f.write(f"FIRMWARE_RELEASE={firmware_release}\n")
+    f.write(f"OPENWRT_RELEASE={openwrt_release}\n")
+    f.write(f"CLASH_KERNEL={clash_kernel}\n")
+
+# 打印调试信息
+print(f"Loaded configuration:")
+print(f"  SOURCE_URL: {source_url}")
+print(f"  SOURCE_BRANCH: {source_branch}")
+print(f"  CONFIG_FILE: {config_file}")
+print(f"  TOOLCHAIN_TAG: {toolchain_tag}")
+PYTHON_SCRIPT
       # 作用：从外部配置文件读取变量并设置为环境变量
 
     # ------------------------------
