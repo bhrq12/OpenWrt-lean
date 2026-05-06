@@ -176,7 +176,10 @@ jobs:
     - name: Checkout
       # 使用官方 checkout 动作（v5 版本，原生支持 Node.js 24）
       # 作用：将当前仓库代码下载到 Runner 中
+      # clean: false 避免清理系统服务创建的临时目录（root 权限）
       uses: actions/checkout@v5
+      with:
+        clean: false
 
     # ----------------------------------------------
     # 步骤 4: 初始化编译环境（合并后的唯一初始化步骤）
