@@ -203,6 +203,17 @@ jobs:
         sudo mount -B $GITHUB_WORKSPACE/tmp /tmp && df -hT
 
     # ----------------------------------------------
+    # 步骤 2.5: 预清理工作目录（解决 checkout 权限问题）
+    # 作用：删除上一次运行留下的 root 权限文件，确保 checkout 能正常执行
+    # ----------------------------------------------
+    - name: Pre-Clean Workspace
+      run: |
+        # 删除工作目录中所有 root 用户的文件
+        sudo find $GITHUB_WORKSPACE -type f -user root -delete 2>/dev/null || true
+        # 删除工作目录中所有 root 用户的目录
+        sudo rm -rf $(find $GITHUB_WORKSPACE -mindepth 1 -type d -user root 2>/dev/null) 2>/dev/null || true
+
+    # ----------------------------------------------
     # 步骤 3: 检出仓库代码（合并后的唯一检出步骤）
     # ----------------------------------------------
     - name: Checkout
