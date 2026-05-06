@@ -689,3 +689,18 @@ jobs:
           
           ### 合并解压命令
           cat OpenWRT_Source_*.tar.gz.part* | tar -zxvf -
+
+    # ----------------------------------------------
+    # 步骤 30: 最终清理（确保工作流结束后能被 GitHub Actions 正常清理）
+    # 作用：删除所有 root 权限的文件和目录，防止清理失败
+    # ----------------------------------------------
+    - name: Final Cleanup Before Exit
+      if: always()
+      continue-on-error: true
+      run: |
+        # 删除工作目录中所有 root 用户的文件（包括隐藏文件）
+        sudo find $GITHUB_WORKSPACE -type f -user root -delete 2>/dev/null || true
+        # 删除工作目录中所有 root 用户的空目录
+        sudo find $GITHUB_WORKSPACE -type d -user root -empty -delete 2>/dev/null || true
+        # 删除工作目录中所有 root 用户的目录（递归）
+        sudo rm -rf $(find $GITHUB_WORKSPACE -type d -user root 2>/dev/null) 2>/dev/null || true
