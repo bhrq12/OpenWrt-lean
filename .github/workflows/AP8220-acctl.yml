@@ -94,6 +94,9 @@ env:
   MNT_RESERVE_KB: 102400    # /mnt 分区预留 100MB（KB）
   TOOLCHAIN_SPLIT_SIZE: 1900M  # 工具链镜像分卷大小（1900MB，符合 GitHub 单文件限制）
   BACKUP_SPLIT_SIZE: 500M    # 源码备份分卷大小（500MB）
+  
+  # Node.js 版本配置：强制使用 Node.js 24（解决弃用警告）
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # ===============================================
 # 并发控制配置
@@ -233,7 +236,7 @@ jobs:
     # 作用：缓存 dl 和 staging_dir 目录，减少重复下载
     # ----------------------------------------------
     - name: Cache OpenWRT Dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v4.1.2
       with:
         path: |
           ${{ env.OPENWRT_PATH }}/dl
@@ -637,14 +640,37 @@ jobs:
 
     # ----------------------------------------------
     # 步骤 26: 编译所有软件包（固件）
+    # 超时设置：240分钟超时
     # ----------------------------------------------
     - name: Compile All Packages
+      timeout-minutes: 240
       run: |
         # 进入 OpenWRT 源码目录
         cd "$OPENWRT_PATH" || exit 1
+        # 记录开始时间和系统信息
+        echo "=== 编译开始 ==="
+        echo "时间: $(date)"
+        echo "CPU核心数: $(nproc)"
+        echo "内存信息:"
+        free -h
+        echo "磁盘空间:"
+        df -hT
+        echo ""
         # 编译固件，添加错误重试机制
-        # 会自动读取缓存里的工具链
-        make -j8 V=s || make -j4 V=s || make -j1 V=s
+        # 先尝试 8 线程，失败则 4 线程，再失败则 1 线程（显示详细日志）
+        echo "开始编译 (8线程)..."
+        if make -j8 V=s; then
+          echo "编译成功!"
+        elif make -j4 V=s; then
+          echo "编译成功 (降级到4线程)!"
+        elif make -j1 V=s; then
+          echo "编译成功 (降级到1线程)!"
+        else
+          echo "编译失败!"
+          echo "错误信息:"
+          cat $OPENWRT_PATH/build_dir/target-*/linux-*/compile.log 2>/dev/null || true
+          exit 1
+        fi
     # ----------------------------------------------
     # 步骤 28: 清理临时文件（性能优化）
     # 作用：清理编译过程中的临时文件，释放磁盘空间
