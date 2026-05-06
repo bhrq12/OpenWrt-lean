@@ -1,0 +1,618 @@
+# ===============================================
+# 工作流描述：为 AP8220 设备编译带 acctl 的 OpenWrt 固件
+# 文件名称：AP8220-acctl.yml
+# 许可证：MIT
+# 作者：bhrq12
+# 项目地址：https://github.com/bhrq12/immortalwrt.git
+#          https://github.com/openwrt/openwrt.git
+# ===============================================
+
+# 工作流名称：显示在 GitHub Actions 界面
+name: AP8220 acctl
+
+# ===============================================
+# 触发条件配置
+# ===============================================
+on:
+  # 手动触发：允许用户在 GitHub Actions 界面手动运行工作流
+  workflow_dispatch:
+  
+  # 定时触发（已注释）：每天晚上 8 点自动运行
+  # schedule:
+  #   - cron: 0 20 * * *
+
+# ===============================================
+# 全局环境变量定义
+# 这些变量在整个工作流的所有 Job 中生效
+# ===============================================
+env:
+  # OpenWRT 官方源码仓库地址
+  # 取值范围：有效的 Git 仓库 URL
+  # 使用场景：指定要编译的 OpenWRT 版本源码
+  SOURCE_URL: https://github.com/openwrt/openwrt.git
+  
+  # OpenWRT 源码分支或版本标签
+  # 取值范围：有效的分支名（如 master、v24.10.6）或版本标签
+  # 使用场景：指定要编译的 OpenWRT 版本
+  SOURCE_BRANCH: main
+  
+  # 编译配置文件路径（相对于仓库根目录）
+  # 取值范围：仓库中存在的配置文件路径
+  # 使用场景：指定目标设备的编译配置
+  CONFIG_FILE: configs/config-ap8220.config
+  
+  # 自定义脚本名称（用于修改源码或配置）
+  # 取值范围：仓库 scripts 目录下的脚本文件名
+  # 使用场景：在编译前执行自定义修改操作
+  DIY_SCRIPT: diy-script-1.sh
+  
+  # 工具链 Release 标签名（用于存储工具链镜像）
+  # 取值范围：有效的 Release 标签名称
+  # 使用场景：标识工具链的存储位置
+  TOOLCHAIN_TAG: Toolchain
+  
+  # Clash 内核架构（用于预设 Clash Meta 内核）
+  # 取值范围：arm64、amd64、mipsle 等
+  # 使用场景：指定 Clash 内核的目标架构
+  CLASH_KERNEL: arm64
+  
+  # 是否上传二进制目录到 Release
+  # 取值范围：true（上传）、false（不上传）
+  # 使用场景：控制是否发布编译产物
+  UPLOAD_BIN_DIR: false
+  
+  # 是否发布固件到 Release
+  # 取值范围：true（发布）、false（不发布）
+  # 使用场景：控制固件发布流程
+  FIRMWARE_RELEASE: true
+  
+  # 固件 Release 标签名（用于存储固件文件）
+  # 取值范围：有效的 Release 标签名称
+  # 使用场景：标识固件的存储位置
+  FIRMWARE_TAG: ROOTFS_PLUS
+  
+  # 是否发布 OpenWRT 到 Release
+  # 取值范围：true（发布）、false（不发布）
+  # 使用场景：控制 OpenWRT 发布流程
+  OPENWRT_RELEASE: true
+  
+  # OpenWRT Release 标签名（用于存储 OpenWRT 文件）
+  # 取值范围：有效的 Release 标签名称
+  # 使用场景：标识 OpenWRT 的存储位置
+  OPENWRT_TAG: AP8220_ipq8071a_acctl
+  
+  # 系统时区设置
+  # 取值范围：有效的时区标识（如 Asia/Shanghai、UTC）
+  # 使用场景：确保日志时间戳符合本地时区
+  TZ: Asia/Shanghai
+
+# ===============================================
+# Job 定义：合并后的统一 Job
+# 作用：完整的 OpenWRT 编译流程（工具链 + 固件）
+# ===============================================
+jobs:
+  # ===============================================
+  # 合并后的统一 Job：编译工具链和固件
+  # 包含原 Toolchain 和 Build 两个 Job 的核心逻辑
+  # ===============================================
+  Build:
+    # 运行环境：Ubuntu 22.04
+    # 说明：GitHub Actions 提供的虚拟机环境
+    runs-on: ubuntu-22.04
+
+    # 步骤序列：按顺序执行的操作
+    steps:
+    
+    # ----------------------------------------------
+    # 步骤 1: 检查服务器性能
+    # 作用：显示当前 Runner 的硬件配置，提醒性能限制
+    # ----------------------------------------------
+    - name: Check Server Performance
+      run: |
+        # 显示警告信息
+        echo "警告⚠"
+        echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
+        # 显示已知 CPU 型号（降序排列）
+        echo -e "已知CPU型号（降序）：8370C，8272CL，8171M，E5-2673 \n"
+        # 显示 CPU 信息
+        echo "--------------------------CPU信息--------------------------"
+        echo "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
+        echo -e "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n"
+        # 显示内存信息
+        echo "--------------------------内存信息--------------------------"
+        echo "已安装内存详细信息："
+        echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
+        # 显示硬盘信息
+        echo "--------------------------硬盘信息--------------------------"
+        echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
+
+    # ----------------------------------------------
+    # 步骤 2: 合并磁盘空间（LVM）
+    # 作用：使用 LVM 将根分区和 /mnt 分区合并，增加可用空间
+    # 技术说明：创建虚拟磁盘文件，使用 LVM 合并，挂载到工作目录
+    # ----------------------------------------------
+    - name: Combine Disks
+      run: |
+        # 关闭并删除交换文件
+        sudo swapoff -a && sudo rm -f /mnt/swapfile
+        # 计算根分区可用空间（KB），预留 1GB
+        export ROOT_FREE_KB=$(df --block-size=1024 --output=avail / | tail -1)
+        export ROOT_LOOP_KB=$(expr $ROOT_FREE_KB - 1048576)
+        export ROOT_LOOP_BYTES=$(expr $ROOT_LOOP_KB \* 1024)
+        # 创建根分区虚拟磁盘文件
+        sudo fallocate -l $ROOT_LOOP_BYTES /root.img
+        # 创建物理卷
+        export ROOT_LOOP_DEVNAME=$(sudo losetup -Pf --show /root.img)
+        sudo pvcreate -f $ROOT_LOOP_DEVNAME
+        # 计算 /mnt 分区可用空间（KB），预留 100MB
+        export MNT_FREE_KB=$(df --block-size=1024 --output=avail /mnt | tail -1)
+        export MNT_LOOP_KB=$(expr $MNT_FREE_KB - 102400)
+        export MNT_LOOP_BYTES=$(expr $MNT_LOOP_KB \* 1024)
+        # 创建 /mnt 分区虚拟磁盘文件
+        sudo fallocate -l $MNT_LOOP_BYTES /mnt/mnt.img
+        # 创建物理卷
+        export MNT_LOOP_DEVNAME=$(sudo losetup -Pf --show /mnt/mnt.img)
+        sudo pvcreate -f $MNT_LOOP_DEVNAME
+        # 创建卷组并合并两个物理卷
+        sudo vgcreate vgstorage $ROOT_LOOP_DEVNAME $MNT_LOOP_DEVNAME
+        # 创建逻辑卷（使用所有可用空间）
+        sudo lvcreate -n lvstorage -l 100%FREE vgstorage
+        # 格式化为 Btrfs 文件系统（带压缩）
+        export LV_DEVNAME=$(sudo lvscan | awk -F "'" '{print $2}')
+        sudo mkfs.btrfs -L combinedisk $LV_DEVNAME
+        # 挂载到工作目录
+        sudo mount -o compress=zstd $LV_DEVNAME $GITHUB_WORKSPACE
+        # 修改所有者
+        sudo chown -R runner:runner $GITHUB_WORKSPACE
+        # 创建临时目录并复制内容
+        mkdir $GITHUB_WORKSPACE/tmp && chmod 777 $GITHUB_WORKSPACE/tmp
+        sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp
+        # 绑定挂载到 /tmp
+        sudo mount -B $GITHUB_WORKSPACE/tmp /tmp && df -hT
+
+    # ----------------------------------------------
+    # 步骤 3: 检出仓库代码（合并后的唯一检出步骤）
+    # ----------------------------------------------
+    - name: Checkout
+      # 使用官方 checkout 动作（main 分支）
+      # 作用：将当前仓库代码下载到 Runner 中
+      uses: actions/checkout@main
+
+    # ----------------------------------------------
+    # 步骤 4: 初始化编译环境（合并后的唯一初始化步骤）
+    # ----------------------------------------------
+    - name: Initialization Environment
+      env:
+        # 非交互式安装模式
+        # 作用：避免 apt 安装时等待用户输入
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        # 清理不必要的系统文件，释放磁盘空间
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android
+        # 更新软件包列表
+        sudo apt update -y
+        # 升级已安装的软件包
+        sudo apt full-upgrade -y
+        # 安装 OpenWRT 编译所需的所有依赖包
+        # 包含编译工具、语言支持、压缩工具、版本控制等
+        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+        bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gcc-multilib g++-multilib gettext \
+        genisoimage git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
+        libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev \
+        libreadline-dev libssl-dev libtool llvm lrzsz libnsl-dev ninja-build p7zip p7zip-full patch pkgconf \
+        python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion \
+        swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+
+    # ----------------------------------------------
+    # 步骤 5: 克隆 OpenWRT 源码
+    # ----------------------------------------------
+    - name: Clone Source Code
+      id: clone  # 步骤 ID，用于后续引用输出
+      run: |
+        # 显示磁盘使用情况
+        df -hT $GITHUB_WORKSPACE
+        # 克隆 OpenWRT 源码到 workspace/openwrt 目录
+        git clone $SOURCE_URL -b $SOURCE_BRANCH workspace/openwrt
+        # 进入源码目录
+        cd workspace/openwrt
+        # 设置环境变量和输出参数
+        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+        echo "OPENWRT_PATH=$(echo $PWD)" >> $GITHUB_OUTPUT
+        # 获取当前提交的详细信息（作者、日期、提交信息、哈希）
+        export VERSION_INFO=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
+        echo "VERSION_INFO=$VERSION_INFO" >> $GITHUB_ENV
+        echo "VERSION_INFO=$(echo $VERSION_INFO)" >> $GITHUB_OUTPUT
+
+    # ----------------------------------------------
+    # 步骤 6: 生成工具链配置
+    # ----------------------------------------------
+    - name: Generate Toolchain Config
+      run: |
+        # 如果配置文件存在，复制到 OpenWRT 目录
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRT_PATH/.config
+        # 添加工具链编译必需的配置项
+        echo "CONFIG_ALL=y" >> $OPENWRT_PATH/.config
+        echo "CONFIG_ALL_NONSHARED=y" >> $OPENWRT_PATH/.config
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 生成默认配置（静默模式）
+        make defconfig > /dev/null 2>&1
+
+    # ----------------------------------------------
+    # 步骤 7: 生成环境变量
+    # ----------------------------------------------
+    - name: Generate Variables
+      id: env  # 步骤 ID，用于后续引用输出
+      run: |
+        # 获取当前分支名称
+        export CURRENT_BRANCH="$(git symbolic-ref --short HEAD)"
+        echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
+        echo "CURRENT_BRANCH=$(echo $CURRENT_BRANCH)" >> $GITHUB_OUTPUT
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 从 URL 提取仓库名称（去除 .git 后缀）
+        export SOURCE_REPO="$(echo $SOURCE_URL | awk -F '/' '{print $(NF)}')"
+        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+        echo "SOURCE_REPO=$(echo $SOURCE_REPO)" >> $GITHUB_OUTPUT
+        # 从 .config 提取目标架构
+        export DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+        echo "DEVICE_TARGET=$(echo $DEVICE_TARGET)" >> $GITHUB_OUTPUT
+        # 从 .config 提取子架构
+        export DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+        echo "DEVICE_SUBTARGET=$(echo $DEVICE_SUBTARGET)" >> $GITHUB_OUTPUT
+        # 生成工具链镜像名称（包含仓库、分支、架构信息）
+        export TOOLCHAIN_IMAGE="toolchain-$SOURCE_REPO-$SOURCE_BRANCH-$DEVICE_TARGET-$DEVICE_SUBTARGET"
+        echo "TOOLCHAIN_IMAGE=$TOOLCHAIN_IMAGE" >> $GITHUB_ENV
+        echo "TOOLCHAIN_IMAGE=$(echo $TOOLCHAIN_IMAGE)" >> $GITHUB_OUTPUT
+
+    # ----------------------------------------------
+    # 步骤 8: 对比工具链 Hash（智能增量编译）
+    # 作用：判断是否需要重新编译工具链
+    # ----------------------------------------------
+    - name: Compare Toolchain Hash
+      id: hash  # 步骤 ID，用于后续引用输出
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 获取 tools 和 toolchain 目录的最新提交哈希
+        export CURRENT_HASH=$(git log --pretty=tformat:"%H" -n1 tools toolchain)
+        echo "CURRENT_HASH=$CURRENT_HASH" >> $GITHUB_ENV
+        echo "CURRENT_HASH is $CURRENT_HASH"
+        # 从 GitHub Release 获取已缓存的哈希值
+        export CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.hash)
+        echo "CACHE_HASH is $CACHE_HASH"
+        # 判断是否需要重新编译
+        # 如果缓存哈希不存在，或与当前哈希不匹配，则需要重新编译
+        if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
+          echo "REBUILD_TOOLCHAIN=true" >> $GITHUB_OUTPUT
+        fi
+
+    # ----------------------------------------------
+    # 步骤 9: 安装 Feeds（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Install Feeds (Toolchain)
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 更新所有 feeds
+        ./scripts/feeds update -a
+        # 安装所有 feeds
+        ./scripts/feeds install -a
+
+    # ----------------------------------------------
+    # 步骤 10: 编译工具（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Compile Tools
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 确保配置正确
+        make defconfig
+        # 显示线程数
+        echo -e "$(nproc) thread compile"
+        # 编译工具，失败则降级为单线程并显示详细日志
+        make tools/compile -j$(nproc) || make tools/compile -j1 V=s
+
+    # ----------------------------------------------
+    # 步骤 11: 清理内核残留（条件执行）
+    # 作用：修复内核目录缺失问题
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Clean Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 清理内核源码
+        make target/linux/clean
+
+    # ----------------------------------------------
+    # 步骤 12: 下载内核源码（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Download Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 下载内核源码（多线程，显示详细日志）
+        make target/linux/download -j$(nproc) V=s
+
+    # ----------------------------------------------
+    # 步骤 13: 准备内核源码（条件执行）
+    # 作用：解压和配置内核，修复 .config / compiler.h 缺失问题
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Prepare Kernel Source
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 准备内核源码（解压、应用补丁、配置）
+        make target/linux/prepare V=s
+
+    # ----------------------------------------------
+    # 步骤 14: 重新生成编译配置（条件执行）
+    # 作用：确保工具链和内核路径正确
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Regenerate Defconfig
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 重新生成默认配置
+        make defconfig
+
+    # ----------------------------------------------
+    # 步骤 15: 下载工具链依赖（条件执行）
+    # 作用：防止编译时因依赖缺失而中断
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Download Toolchain Dependencies
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 下载所有编译依赖（多线程）
+        make download -j$(nproc)
+
+    # ----------------------------------------------
+    # 步骤 16: 编译工具链（条件执行）
+    # 作用：编译目标设备的交叉编译工具链
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Compile Toolchain
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 显示线程数
+        echo -e "$(nproc) thread compile"
+        # 编译工具链，失败则降级为单线程并显示详细日志
+        make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+        # 清理临时文件
+        rm -rf .config* dl bin
+
+    # ----------------------------------------------
+    # 步骤 17: 安装工具链（条件执行）
+    # 作用：让工具链生效，供后续编译使用
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Install Toolchain
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入源码目录
+        cd $OPENWRT_PATH
+        # 安装工具链（显示详细日志）
+        make toolchain/install V=s
+
+    # ----------------------------------------------
+    # 步骤 18: 生成工具链镜像（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Generate Toolchain Image
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      run: |
+        # 进入 workspace 目录
+        cd workspace
+        # 创建 squashfs 压缩镜像（zstd 压缩，强制用户/组 ID）
+        mksquashfs openwrt $TOOLCHAIN_IMAGE -force-gid 1001 -force-uid 1001 -comp zstd
+        # 创建输出目录
+        mkdir -p $GITHUB_WORKSPACE/output
+        # 分卷：每个文件最大 1900MB（GitHub Release 单文件限制）
+        split -d -b 1900M $TOOLCHAIN_IMAGE $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.img.
+        # 删除原始镜像文件
+        rm $TOOLCHAIN_IMAGE
+        # 保存当前哈希值，用于下次增量判断
+        echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.hash
+        # 显示生成的文件列表
+        ls -lh $GITHUB_WORKSPACE/output
+
+    # ----------------------------------------------
+    # 步骤 19: 删除旧的工具链资产（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Delete Old Toolchain Assets
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      # 使用第三方动作删除 Release 资产
+      uses: mknejp/delete-release-assets@v1
+      with:
+        # GitHub 令牌（自动提供）
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # Release 标签
+        tag: ${{ env.TOOLCHAIN_TAG }}
+        # 要删除的资产匹配模式（匹配所有相关文件）
+        assets: '${{ env.TOOLCHAIN_IMAGE }}.*'
+        # 没有资产时不报错
+        fail-if-no-assets: false
+        # Release 不存在时不报错
+        fail-if-no-release: false
+
+    # ----------------------------------------------
+    # 步骤 20: 上传工具链镜像（条件执行）
+    # 条件：需要重建工具链时才执行
+    # ----------------------------------------------
+    - name: Upload Toolchain Image
+      if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+      # 使用第三方动作发布 Release
+      uses: ncipollo/release-action@v1
+      with:
+        # Release 名称
+        name: Toolchain-Image
+        # 允许更新已存在的 Release
+        allowUpdates: true
+        # Release 标签
+        tag: ${{ env.TOOLCHAIN_TAG }}
+        # GitHub 令牌
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # 要上传的文件
+        artifacts: output/*
+        # Release 描述
+        body: OpenWrt 工具链镜像文件
+
+    # ----------------------------------------------
+    # 步骤 21: 准备工具链镜像（用于固件编译）
+    # 作用：下载并挂载工具链镜像，准备编译环境
+    # ----------------------------------------------
+    - name: Prepare Toolchain Image for Build
+      run: |
+        # 如果工具链已重建，直接使用本地文件
+        if [ -d "$GITHUB_WORKSPACE/output" ]; then
+          # 合并分卷
+          cat $GITHUB_WORKSPACE/output/$TOOLCHAIN_IMAGE.img.0* > workspace/$TOOLCHAIN_IMAGE.img
+        else
+          # 否则从 Release 下载
+          cd workspace
+          for i in {0..9}
+          do
+            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/$TOOLCHAIN_IMAGE.img.0$i >> $TOOLCHAIN_IMAGE.img || break
+          done
+        fi
+        # 创建 overlay 挂载所需的目录
+        mkdir -p openwrt-ro openwrt workdir overlay
+        # 挂载工具链镜像（只读）
+        sudo mount -o loop workspace/$TOOLCHAIN_IMAGE.img workspace/openwrt-ro
+        # 使用 overlay 挂载（可读写）
+        sudo mount -t overlay overlay -o lowerdir=workspace/openwrt-ro,upperdir=workspace/overlay,workdir=workspace/workdir workspace/openwrt
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 拉取最新代码
+        git pull
+
+    # ----------------------------------------------
+    # 步骤 22: 安装 Feeds（固件编译阶段）
+    # 作用：确保 Feeds 为最新状态
+    # ----------------------------------------------
+    - name: Install Feeds (Build)
+      run: |
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 更新所有 feeds
+        ./scripts/feeds update -a
+        # 安装所有 feeds
+        ./scripts/feeds install -a
+
+    # ----------------------------------------------
+    # 步骤 23: 加载自定义配置
+    # ----------------------------------------------
+    - name: Load Custom Configuration
+      run: |
+        # 如果 files 目录存在，复制到 OpenWRT 源码目录
+        [ -e files ] && mv files "$OPENWRT_PATH"/files
+        # 如果配置文件存在，复制到 OpenWRT 源码目录
+        [ -e "$CONFIG_FILE" ] && mv "$CONFIG_FILE" "$OPENWRT_PATH"/.config
+        # 添加执行权限
+        chmod +x $GITHUB_WORKSPACE/scripts/*.sh
+        chmod +x $DIY_SCRIPT
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 执行自定义脚本
+        $GITHUB_WORKSPACE/$DIY_SCRIPT
+        # 预设 Clash 内核
+        $GITHUB_WORKSPACE/scripts/preset-clash-core.sh $CLASH_KERNEL
+        # 预设终端工具
+        $GITHUB_WORKSPACE/scripts/preset-terminal-tools.sh
+
+    # ----------------------------------------------
+    # 步骤 24: 下载依赖包
+    # ----------------------------------------------
+    - name: Download DL Package
+      run: |
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 生成默认配置
+        make defconfig
+        # 下载软件包，添加错误重试机制
+        # 先尝试 8 线程，失败则 4 线程，再失败则 1 线程
+        make download -j8 || make download -j4 || make download -j1
+        # 清理无效的下载文件（小于 1KB 的文件）
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    # ----------------------------------------------
+    # 步骤 25: 编译 OpenWRT 工具链（固件阶段）
+    # ----------------------------------------------
+    - name: Compile OpenWRT Toolchain
+      run: |
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 编译工具链，添加错误重试机制
+        # 先尝试 8 线程，失败则 4 线程，再失败则 1 线程（显示详细日志）
+        make toolchain/install -j8 V=s || make toolchain/install -j4 V=s || make toolchain/install -j1 V=s
+
+    # ----------------------------------------------
+    # 步骤 26: 编译所有软件包（固件）
+    # ----------------------------------------------
+    - name: Compile All Packages
+      run: |
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 编译固件，添加错误重试机制
+        # 会自动读取缓存里的工具链
+        make -j8 V=s || make -j4 V=s || make -j1 V=s
+
+    # ----------------------------------------------
+    # 步骤 27: 备份 OpenWRT 源码（500MB 分卷）
+    # ----------------------------------------------
+    - name: Backup OpenWRT Source (split 500MB)
+      run: |
+        # 进入 OpenWRT 源码目录
+        cd "$OPENWRT_PATH" || exit 1
+        # 创建备份目录
+        mkdir -p source-backup
+        # 打包编译产物（bin 目录），按 500MB 分卷
+        # 排除备份目录，避免循环打包
+        tar -zcvf - --exclude=./source-backup ./bin/* | split -b 500M - source-backup/OpenWRT_Source_$(date +%Y%m%d).tar.gz.part
+
+    # ----------------------------------------------
+    # 步骤 28: 上传源码到 Release
+    # 说明：只上传分卷压缩包，不上传系统目录
+    # ----------------------------------------------
+    - name: Upload Source To Release
+      # 使用第三方动作发布 Release
+      uses: ncipollo/release-action@v1
+      with:
+        # Release 名称
+        name: OpenWRT 源码备份（AP8220 IPQ8071A）
+        # 允许更新已存在的 Release
+        allowUpdates: true
+        # Release 标签
+        tag: ${{ env.FIRMWARE_TAG }}
+        # GitHub 令牌
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # 只上传分卷压缩包，绝对不上传系统目录
+        artifacts: ${{ env.OPENWRT_PATH }}/source-backup/*
+        # Release 描述
+        body: |
+          ## OpenWRT 源码备份（AP8220 IPQ8071A）
+          打包方式：tar.gz 500MB 分卷
+          
+          ### 合并解压命令
+          cat OpenWRT_Source_*.tar.gz.part* | tar -zxvf -
