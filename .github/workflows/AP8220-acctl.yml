@@ -3,12 +3,11 @@
 # 文件名称：AP8220-acctl.yml
 # 许可证：MIT
 # 作者：bhrq12
-# 项目地址：https://github.com/bhrq12/immortalwrt.git
-#          https://github.com/openwrt/openwrt.git
+# 项目地址：https://github.com/bhrq12/lede.git
 # ===============================================
 
 # 工作流名称：显示在 GitHub Actions 界面
-name: AP8220 acctl
+name: acctl too
 
 # ===============================================
 # 触发条件配置
@@ -29,7 +28,7 @@ env:
   # OpenWRT 官方源码仓库地址
   # 取值范围：有效的 Git 仓库 URL
   # 使用场景：指定要编译的 OpenWRT 版本源码
-  SOURCE_URL: https://github.com/openwrt/openwrt.git
+  SOURCE_URL: https://github.com/bhrq12/immortalwrt.git
   
   # OpenWRT 源码分支或版本标签
   # 取值范围：有效的分支名（如 master、v24.10.6）或版本标签
@@ -174,9 +173,9 @@ jobs:
     # 步骤 3: 检出仓库代码（合并后的唯一检出步骤）
     # ----------------------------------------------
     - name: Checkout
-      # 使用官方 checkout 动作（main 分支）
+      # 使用官方 checkout 动作（v4 版本）
       # 作用：将当前仓库代码下载到 Runner 中
-      uses: actions/checkout@main
+      uses: actions/checkout@v4
 
     # ----------------------------------------------
     # 步骤 4: 初始化编译环境（合并后的唯一初始化步骤）
