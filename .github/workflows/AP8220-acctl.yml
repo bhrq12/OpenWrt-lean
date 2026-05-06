@@ -100,10 +100,6 @@ jobs:
     # 说明：GitHub Actions 提供的虚拟机环境
     runs-on: ubuntu-22.04
 
-    # 环境变量：提前使用 Node.js 24，避免 Node.js 20 弃用警告
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     # 步骤序列：按顺序执行的操作
     steps:
     
@@ -178,9 +174,9 @@ jobs:
     # 步骤 3: 检出仓库代码（合并后的唯一检出步骤）
     # ----------------------------------------------
     - name: Checkout
-      # 使用官方 checkout 动作（v4 版本）
+      # 使用官方 checkout 动作（v5 版本，原生支持 Node.js 24）
       # 作用：将当前仓库代码下载到 Runner 中
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # ----------------------------------------------
     # 步骤 4: 初始化编译环境（合并后的唯一初始化步骤）
