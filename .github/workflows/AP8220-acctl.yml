@@ -637,13 +637,17 @@ jobs:
     # ----------------------------------------------
     - name: Cleanup Temporary Files
       if: always()
+      continue-on-error: true
       run: |
-        # 清理 OpenWRT 临时文件
-        rm -rf $OPENWRT_PATH/tmp/* 2>/dev/null || true
+        # 清理 OpenWRT 临时文件（使用 sudo 删除 root 权限文件）
+        sudo rm -rf $OPENWRT_PATH/tmp/* 2>/dev/null || true
         # 清理构建缓存
         rm -rf $OPENWRT_PATH/.config* 2>/dev/null || true
         # 清理临时下载目录
         rm -rf $OPENWRT_PATH/dl/* 2>/dev/null || true
+        # 清理工作目录中的临时文件（使用 sudo 处理 root 权限文件）
+        sudo find $GITHUB_WORKSPACE/tmp -type f -user root -delete 2>/dev/null || true
+        sudo find $GITHUB_WORKSPACE/tmp -type d -user root -empty -delete 2>/dev/null || true
         # 显示清理后的磁盘使用情况
         df -hT $GITHUB_WORKSPACE
 
