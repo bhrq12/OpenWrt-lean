@@ -4,6 +4,7 @@
 # 许可证：MIT
 # 作者：bhrq12
 # 项目地址：https://github.com/bhrq12/lede.git
+#          https://github.com/openwrt/openwrt.git
 # ===============================================
 
 # 工作流名称：显示在 GitHub Actions 界面
@@ -28,7 +29,7 @@ env:
   # OpenWRT 官方源码仓库地址
   # 取值范围：有效的 Git 仓库 URL
   # 使用场景：指定要编译的 OpenWRT 版本源码
-  SOURCE_URL: https://github.com/bhrq12/immortalwrt.git
+  SOURCE_URL: https://github.com/openwrt/openwrt.git
   
   # OpenWRT 源码分支或版本标签
   # 取值范围：有效的分支名（如 master、v24.10.6）或版本标签
