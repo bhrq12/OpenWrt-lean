@@ -1,15 +1,15 @@
 # ===============================================
-# 工作流描述：为 AP4220 128m Plus 设备编译带 acctl 的 OpenWrt 固件
-# 文件名称：AP4220-128m-Plus-acctl.yml
+# 工作流描述：为 AP8220 128m Plus 设备编译带 acctl 的 OpenWrt 固件
+# 文件名称：AP8220-acctl.yml
 # 许可证：MIT
 # 作者：bhrq12
-# 项目地址：https://github.com/bhrq12/lede.git
-# 目标设备：AP4220 128m Plus（IPQ6018 芯片）
+# 项目地址：https://github.com/openwrt/openwrt.git
+# 目标设备：AP8220 128m Plus（IPQ8071 芯片）
 # 功能特性：集成 acctl 流量控制功能
 # ===============================================
 
 # 工作流名称：显示在 GitHub Actions 界面
-name: AP4220-128m-Plus acctl OpenWrt 编译
+name: AP8220-128m-Plus acctl OpenWrt 编译
 
 # ===============================================
 # 触发条件配置
