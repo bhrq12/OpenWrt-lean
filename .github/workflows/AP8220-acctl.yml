@@ -14,7 +14,7 @@ on:
   #   - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/openwrt/openwrt.git
+  SOURCE_URL: https://github.com/bhrq12/immortalwrt.git
   SOURCE_BRANCH: main
   CONFIG_FILE: configs/config-ap8220.config
   DIY_SCRIPT: diy-script-1.sh
