@@ -18,13 +18,13 @@ env:
   SOURCE_BRANCH: main
   CONFIG_FILE: configs/config-ap8220.config
   DIY_SCRIPT: diy-script-1.sh
-  TOOLCHAIN_TAG: Toolchain
+  TOOLCHAIN_TAG: Toolchain-immortalwrt
   CLASH_KERNEL: arm64
   UPLOAD_BIN_DIR: false
   FIRMWARE_RELEASE: true
-  FIRMWARE_TAG: ROOTFS_PLUS
+  FIRMWARE_TAG: ROOTFS_PLUS-immortalwrt
   OPENWRT_RELEASE: true
-  OPENWRT_TAG: AP8220_128m_PLUS_acctl
+  OPENWRT_TAG: AP8220_128m_PLUS_immortalwrt
   TZ: Asia/Shanghai
 
 jobs:
