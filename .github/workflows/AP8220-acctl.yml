@@ -290,11 +290,12 @@ jobs:
         cd "${{ env.OPENWRT_PATH }}" || exit 1
         make toolchain/install -j8 V=s || make toolchain/install -j4 V=s || make toolchain/install -j1 V=s
 
-    # 编译所有软件包（跳过错误继续）
-    # - name: Compile All Packages
-    #   run: |
-    #     cd "${{ env.OPENWRT_PATH }}" || exit 1
-        # make -k package/compile -j8 V=s || make -k package/compile -j4 V=s || make -k package/compile -j1 V=s
+    # 编译固件（跳过错误继续）
+    - name: Build Full Firmware (Compile Everything + Make Image)
+      run: |
+        cd "${{ env.OPENWRT_PATH }}" || exit 1
+        export SOURCE_DATE_EPOCH=$(date +%s)
+        make -k -j8 V=s || make -k -j4 V=s || make -k -j1 V=s
 
     # 打包备份源码（500M分卷 + 自动日期 + 排除循环目录）
     - name: Backup OpenWRT Source (split 500MB)
