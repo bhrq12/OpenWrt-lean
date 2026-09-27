@@ -296,22 +296,11 @@ jobs:
         
         echo -e "$(nproc) thread compile"
         make diffconfig
-        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
-        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        # 只编译OpenWrt_AC_AP_WiFi下面全部软件包（精准编译，不编译全部包）
+        make package/OpenWrt_AC_AP_WiFi/compile -j$(nproc) || make package/OpenWrt_AC_AP_WiFi/compile -j1 V=s
+        # 生成包索引
         make package/index
-
-    - name: Generate Firmware
-      id: generate
-      run: |
-        cd $OPENWRT_PATH
-        mkdir -p files/etc/uci-defaults
-        cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
-        make package/install -j$(nproc) || make package/install -j1 V=s
-        make target/install -j$(nproc) || make target/install -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
-        make checksum
-        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
 
     - name: Check Space Usage
@@ -330,36 +319,38 @@ jobs:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
 
-    - name: Organize Files
+    - name: Organize APK Packages
       if: steps.generate.outputs.status == 'success'
       run: |
-        cd $OPENWRT_PATH/bin/targets/*/*
+        cd $OPENWRT_PATH/bin/packages/*/*
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
-        # mv -f $OPENWRT_PATH/bin/packages/*/*/*.apk packages
-        tar -zcf Packages.tar.gz packages
+        # 收集所有编译出来的apk软件包
+        mkdir -p packages
+        find . -maxdepth 1 -name "*.apk" -exec cp {} packages/ \;
+        tar -zcf Packages-apk.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
+        echo "PKG_PATH=$PWD" >> $GITHUB_ENV
 
-    - name: Upload Firmware To Artifact
+    - name: Upload APK Packages To Artifact
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE_PATH }}
+        name: ${{ env.SOURCE_REPO }}-apk-packages-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        path: ${{ env.PKG_PATH }}
 
-    - name: Upload Firmware To Release
+    - name: Upload APK Packages To Release
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
       uses: ncipollo/release-action@v1
       with:
-        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+        name: R${{ env.DATE }} APK Packages for ${{ env.FIRMWARE_TAG }}
         allowUpdates: true
         tag: ${{ env.FIRMWARE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ${{ env.FIRMWARE_PATH }}/*
+        artifacts: ${{ env.PKG_PATH }}/*
         body: |
-          **AP8220 128m Plus - OpenWrt AC+AP WiFi 统一管理系统固件**
-          * 基于 OpenWrt 24.10 源码编译，内置 AC 管理器与 AP 端管理软件包（ap-manager）
-          AC 端：AP 集中管理、配置下发、状态监控；AP 端：自动发现 AC、注册上线、加载配置
-          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/bhrq12/openwrt-24.10)更新记录】
+          **OpenWrt 编译 APK 软件包发布**
+          * 基于 OpenWrt 源码编译，本次产出 APK 软件包
+          包含编译生成的apk安装包、sha256sums校验文件、编译.config配置备份
+          当前使用版本:【编译前的最后一次[➦主源码](${{ env.SOURCE_URL }})更新记录】
           ${{ env.VERSION_INFO }}
