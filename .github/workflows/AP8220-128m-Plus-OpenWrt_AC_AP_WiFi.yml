@@ -268,6 +268,9 @@ jobs:
         chmod +x $GITHUB_WORKSPACE/scripts/*.sh
         chmod +x $DIY_SCRIPT
         cd $OPENWRT_PATH
+        rm -rf package/OpenWrt_AC_AP_WiFi
+        cp -r $GITHUB_WORKSPACE/OpenWrt_AC_AP_WiFi package/OpenWrt_AC_AP_WiFi
+        ls -la package/OpenWrt_AC_AP_WiFi
         $GITHUB_WORKSPACE/$DIY_SCRIPT
         $GITHUB_WORKSPACE/scripts/preset-clash-core.sh $CLASH_KERNEL
         $GITHUB_WORKSPACE/scripts/preset-terminal-tools.sh
