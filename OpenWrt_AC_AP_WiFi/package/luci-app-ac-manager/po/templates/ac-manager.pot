@@ -1,0 +1,380 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "AC Manager"
+msgstr ""
+
+msgid "AC Manager - Overview"
+msgstr ""
+
+msgid "AC Controller"
+msgstr ""
+
+msgid "AP Devices"
+msgstr ""
+
+msgid "Configuration"
+msgstr ""
+
+msgid "Config Templates"
+msgstr ""
+
+msgid "Audit Logs"
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "PID:"
+msgstr ""
+
+msgid "Version:"
+msgstr ""
+
+msgid "Uptime:"
+msgstr ""
+
+msgid "WebSocket Port:"
+msgstr ""
+
+msgid "WS Connections:"
+msgstr ""
+
+msgid "Online APs:"
+msgstr ""
+
+msgid "Total APs:"
+msgstr ""
+
+msgid "Service Control"
+msgstr ""
+
+msgid "Recent Logs"
+msgstr ""
+
+msgid "Timestamp"
+msgstr ""
+
+msgid "Level"
+msgstr ""
+
+msgid "Module"
+msgstr ""
+
+msgid "Message"
+msgstr ""
+
+msgid "Device SN"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "Firmware"
+msgstr ""
+
+msgid "Site"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Last Heartbeat"
+msgstr ""
+
+msgid "Config Version"
+msgstr ""
+
+msgid "CPU %"
+msgstr ""
+
+msgid "MEM %"
+msgstr ""
+
+msgid "Clients"
+msgstr ""
+
+msgid "All Sites"
+msgstr ""
+
+msgid "All Status"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Upgrading"
+msgstr ""
+
+msgid "Maintenance"
+msgstr ""
+
+msgid "Disconnected"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "No devices found"
+msgstr ""
+
+msgid "Device Detail: "
+msgstr ""
+
+msgid "Device SN:"
+msgstr ""
+
+msgid "Model:"
+msgstr ""
+
+msgid "Firmware:"
+msgstr ""
+
+msgid "Site ID:"
+msgstr ""
+
+msgid "Group ID:"
+msgstr ""
+
+msgid "Status:"
+msgstr ""
+
+msgid "Current Config:"
+msgstr ""
+
+msgid "Config Version:"
+msgstr ""
+
+msgid "Register Time:"
+msgstr ""
+
+msgid "Last Heartbeat:"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Filter: "
+msgstr ""
+
+msgid "AC Manager Configuration"
+msgstr ""
+
+msgid "Server Settings"
+msgstr ""
+
+msgid "Listen Host"
+msgstr ""
+
+msgid "Listen Port"
+msgstr ""
+
+msgid "Certificate File"
+msgstr ""
+
+msgid "Private Key File"
+msgstr ""
+
+msgid "CA Certificate"
+msgstr ""
+
+msgid "Database Settings"
+msgstr ""
+
+msgid "Database Type"
+msgstr ""
+
+msgid "Database Path"
+msgstr ""
+
+msgid "Redis Settings"
+msgstr ""
+
+msgid "Enable Redis"
+msgstr ""
+
+msgid "Redis Host"
+msgstr ""
+
+msgid "Redis Port"
+msgstr ""
+
+msgid "Redis Password"
+msgstr ""
+
+msgid "Heartbeat Settings"
+msgstr ""
+
+msgid "Heartbeat Interval (seconds)"
+msgstr ""
+
+msgid "Heartbeat Timeout (seconds)"
+msgstr ""
+
+msgid "Logging Settings"
+msgstr ""
+
+msgid "Log Level"
+msgstr ""
+
+msgid "Debug"
+msgstr ""
+
+msgid "Info"
+msgstr ""
+
+msgid "Warning"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Fatal"
+msgstr ""
+
+msgid "Log File Path"
+msgstr ""
+
+msgid "Max Log Size (bytes)"
+msgstr ""
+
+msgid "Log Rotation Count"
+msgstr ""
+
+msgid "Config ID"
+msgstr ""
+
+msgid "Template Name"
+msgstr ""
+
+msgid "Type"
+msgstr ""
+
+msgid "Creator"
+msgstr ""
+
+msgid "Created"
+msgstr ""
+
+msgid "Signature"
+msgstr ""
+
+msgid "SSID"
+msgstr ""
+
+msgid "Radio"
+msgstr ""
+
+msgid "Global"
+msgstr ""
+
+msgid "All Types"
+msgstr ""
+
+msgid "✓ Signed"
+msgstr ""
+
+msgid "✗ Unsigned"
+msgstr ""
+
+msgid "No templates found"
+msgstr ""
+
+msgid "Template Detail: "
+msgstr ""
+
+msgid "Template Name:"
+msgstr ""
+
+msgid "Config Content:"
+msgstr ""
+
+msgid "User"
+msgstr ""
+
+msgid "Action"
+msgstr ""
+
+msgid "Resource"
+msgstr ""
+
+msgid "Result"
+msgstr ""
+
+msgid "Detail"
+msgstr ""
+
+msgid "Limit: "
+msgstr ""
+
+msgid "Offset: "
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Export CSV"
+msgstr ""
+
+msgid "No audit logs found"
+msgstr ""
+
+msgid "Service %s request sent."
+msgstr ""
+
+msgid "Failed to %s service: %s"
+msgstr ""
+
+msgid "Configuration saved and AC Manager restarted."
+msgstr ""
+
+msgid "Sync/Restart failed: "
+msgstr ""
+
+msgid "SQLite"
+msgstr ""
+
+msgid "MySQL (requires conditional compilation)"
+msgstr ""
+
+msgid "Bind address for WebSocket server"
+msgstr ""
+
+msgid "WebSocket server port"
+msgstr ""
+
+msgid "TLS certificate path"
+msgstr ""
+
+msgid "TLS private key path"
+msgstr ""
+
+msgid "CA certificate for client verification"
+msgstr ""
+
+msgid "SQLite is recommended for standalone mode"
+msgstr ""
+
+msgid "SQLite database file path"
+msgstr ""
+
+msgid "Enable for cluster or multi-site mode"
+msgstr ""
+
+msgid "Leave empty for no auth"
+msgstr ""

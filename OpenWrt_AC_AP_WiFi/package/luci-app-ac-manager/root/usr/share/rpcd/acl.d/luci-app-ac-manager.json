@@ -1,0 +1,46 @@
+{
+	"luci-app-ac-manager": {
+		"description": "Grant access to LuCI AC Manager administration",
+		"write": {
+			"uci": [
+				"ac-manager"
+			],
+			"file": {
+				"/etc/init.d/ac-manager": [
+					"exec"
+				],
+				"/etc/init.d/ac-manager reload": [
+					"exec"
+				],
+				"/etc/init.d/ac-manager restart": [
+					"exec"
+				],
+				"/etc/init.d/ac-manager stop": [
+					"exec"
+				],
+				"/etc/init.d/ac-manager start": [
+					"exec"
+				],
+				"/usr/sbin/ac-manager-uci-sync": [
+					"exec"
+				]
+			},
+			"ubus": {
+				"ac-manager": [ "*" ]
+			}
+		},
+		"read": {
+			"ubus": {
+				"ac-manager": [ "status", "devices", "templates", "logs", "service" ]
+			},
+			"uci": [
+				"ac-manager"
+			],
+			"file": {
+				"/var/log/ac-manager.log": [
+					"read"
+				]
+			}
+		}
+	}
+}

@@ -1,0 +1,69 @@
+#!/bin/sh
+# Migrate INI config to UCI on first install
+# This script runs once and is then deleted by the system
+
+INI=/etc/ac-manager/ac-manager.conf
+UCI=ac-manager
+
+# If UCI config already exists, don't overwrite
+if uci -q get "$UCI.server" >/dev/null 2>&1; then
+	rm -f /var/luci-indexcache.*.json
+	[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd reload 2>/dev/null
+	exit 0
+fi
+
+# Parse INI and migrate to UCI
+if [ -f "$INI" ]; then
+	get_val() {
+		awk -F= -v key="$1" '
+			/^\[/ { section=$0; next }
+			{
+				split($0, a, "=")
+				k=gensub(/[ \t]/, "", "g", a[1])
+				v=gensub(/[ \t]/, "", "g", a[2])
+				if (k == key) print v
+			}
+		' "$INI"
+	}
+
+	# server section
+	uci -q set $UCI.server=server
+	uci -q set $UCI.server.host="$(get_val host)"
+	uci -q set $UCI.server.port="$(get_val port)"
+	uci -q set $UCI.server.cert_file="$(get_val cert_file)"
+	uci -q set $UCI.server.key_file="$(get_val key_file)"
+	uci -q set $UCI.server.ca_file="$(get_val ca_file)"
+
+	# database section
+	uci -q set $UCI.database=database
+	uci -q set $UCI.database.type="$(get_val type)"
+	uci -q set $UCI.database.path="$(get_val path)"
+
+	# redis section
+	uci -q set $UCI.redis=redis
+	redis_en="$(get_val enabled)"
+	[ -n "$redis_en" ] && uci -q set $UCI.redis.enabled="$redis_en"
+	uci -q set $UCI.redis.host="$(get_val host)"
+	uci -q set $UCI.redis.port="$(get_val port)"
+	uci -q set $UCI.redis.password="$(get_val password)"
+
+	# heartbeat section
+	uci -q set $UCI.heartbeat=heartbeat
+	uci -q set $UCI.heartbeat.interval="$(get_val interval)"
+	uci -q set $UCI.heartbeat.timeout="$(get_val timeout)"
+
+	# logging section
+	uci -q set $UCI.logging=logging
+	uci -q set $UCI.logging.level="$(get_val level)"
+	uci -q set $UCI.logging.file="$(get_val file)"
+	uci -q set $UCI.logging.max_size="$(get_val max_size)"
+	uci -q set $UCI.logging.rotate_count="$(get_val rotate_count)"
+
+	uci commit $UCI
+fi
+
+# Clear luci cache and reload rpcd
+rm -f /var/luci-indexcache.*.json
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd reload 2>/dev/null
+
+exit 0

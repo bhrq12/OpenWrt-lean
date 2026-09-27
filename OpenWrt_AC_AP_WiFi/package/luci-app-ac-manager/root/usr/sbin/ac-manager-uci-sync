@@ -1,0 +1,47 @@
+#!/bin/sh
+# Sync UCI config to INI format for ac-manager daemon
+# ac-manager currently reads INI format, this script bridges UCI→INI
+# Called by LuCI when user saves configuration
+
+UCI=ac-manager
+INI=/etc/ac-manager/ac-manager.conf
+TMP=/tmp/ac-manager.conf.tmp
+
+mkdir -p /etc/ac-manager
+
+cat > "$TMP" <<EOF
+[server]
+host = $(uci -q get $UCI.server.host || echo "0.0.0.0")
+port = $(uci -q get $UCI.server.port || echo "8080")
+cert_file = $(uci -q get $UCI.server.cert_file || echo "/etc/ac-manager/cert.pem")
+key_file = $(uci -q get $UCI.server.key_file || echo "/etc/ac-manager/key.pem")
+ca_file = $(uci -q get $UCI.server.ca_file || echo "/etc/ac-manager/ca.pem")
+
+[database]
+type = $(uci -q get $UCI.database.type || echo "sqlite")
+path = $(uci -q get $UCI.database.path || echo "/var/lib/ac-manager/ac-manager.db")
+
+[redis]
+enabled = $(uci -q get $UCI.redis.enabled || echo "false")
+host = $(uci -q get $UCI.redis.host || echo "127.0.0.1")
+port = $(uci -q get $UCI.redis.port || echo "6379")
+password = $(uci -q get $UCI.redis.password || echo "")
+
+[heartbeat]
+interval = $(uci -q get $UCI.heartbeat.interval || echo "30")
+timeout = $(uci -q get $UCI.heartbeat.timeout || echo "120")
+
+[logging]
+level = $(uci -q get $UCI.logging.level || echo "info")
+file = $(uci -q get $UCI.logging.file || echo "/var/log/ac-manager.log")
+max_size = $(uci -q get $UCI.logging.max_size || echo "10485760")
+rotate_count = $(uci -q get $UCI.logging.rotate_count || echo "5")
+EOF
+
+# Backup old config and replace
+if [ -f "$INI" ]; then
+	cp "$INI" "${INI}.bak"
+fi
+mv "$TMP" "$INI"
+
+exit 0

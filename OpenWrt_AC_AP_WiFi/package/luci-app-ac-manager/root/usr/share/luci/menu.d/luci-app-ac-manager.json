@@ -1,0 +1,57 @@
+{
+	"admin/services/ac-manager": {
+		"title": "AC Manager",
+		"order": 60,
+		"action": {
+			"type": "alias",
+			"path": "admin/services/ac-manager/overview"
+		},
+		"depends": {
+			"acl": [ "luci-app-ac-manager" ],
+			"fs": {
+				"/etc/init.d/ac-manager": "executable"
+			},
+			"uci": { "ac-manager": true }
+		}
+	},
+	"admin/services/ac-manager/overview": {
+		"title": "Overview",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "ac-manager/overview"
+		}
+	},
+	"admin/services/ac-manager/devices": {
+		"title": "AP Devices",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "ac-manager/devices"
+		}
+	},
+	"admin/services/ac-manager/config": {
+		"title": "Configuration",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "ac-manager/config"
+		}
+	},
+	"admin/services/ac-manager/templates": {
+		"title": "Config Templates",
+		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "ac-manager/templates"
+		}
+	},
+	"admin/services/ac-manager/logs": {
+		"title": "Audit Logs",
+		"order": 50,
+		"action": {
+			"type": "view",
+			"path": "ac-manager/logs"
+		}
+	}
+}

@@ -1,0 +1,26 @@
+config server 'server'
+	option host '0.0.0.0'
+	option port '8080'
+	option cert_file '/etc/ac-manager/cert.pem'
+	option key_file '/etc/ac-manager/key.pem'
+	option ca_file '/etc/ac-manager/ca.pem'
+
+config database 'database'
+	option type 'sqlite'
+	option path '/var/lib/ac-manager/ac-manager.db'
+
+config redis 'redis'
+	option enabled '0'
+	option host '127.0.0.1'
+	option port '6379'
+	option password ''
+
+config heartbeat 'heartbeat'
+	option interval '30'
+	option timeout '120'
+
+config logging 'logging'
+	option level 'info'
+	option file '/var/log/ac-manager.log'
+	option max_size '10485760'
+	option rotate_count '5'

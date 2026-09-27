@@ -1,0 +1,22 @@
+#!/bin/sh /etc/rc.common
+
+START=50
+STOP=50
+
+USE_PROCD=1
+
+CONFIG=/etc/ap-manager/ap-manager.conf
+
+start_service() {
+	procd_open_instance
+	procd_set_param command /usr/sbin/ap-manager -c $CONFIG
+	procd_set_param respawn
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param user root
+	procd_close_instance
+}
+
+stop_service() {
+	killall -TERM ap-manager 2>/dev/null
+}

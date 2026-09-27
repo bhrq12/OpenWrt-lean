@@ -1,0 +1,380 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "AC Manager"
+msgstr "AC管理器"
+
+msgid "AC Manager - Overview"
+msgstr "AC管理器 - 总览"
+
+msgid "AC Controller"
+msgstr "AC控制器"
+
+msgid "AP Devices"
+msgstr "AP设备"
+
+msgid "Configuration"
+msgstr "配置"
+
+msgid "Config Templates"
+msgstr "配置模板"
+
+msgid "Audit Logs"
+msgstr "审计日志"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "PID:"
+msgstr "进程ID:"
+
+msgid "Version:"
+msgstr "版本:"
+
+msgid "Uptime:"
+msgstr "运行时长:"
+
+msgid "WebSocket Port:"
+msgstr "WebSocket端口:"
+
+msgid "WS Connections:"
+msgstr "WS连接数:"
+
+msgid "Online APs:"
+msgstr "在线AP:"
+
+msgid "Total APs:"
+msgstr "AP总数:"
+
+msgid "Service Control"
+msgstr "服务控制"
+
+msgid "Recent Logs"
+msgstr "最近日志"
+
+msgid "Timestamp"
+msgstr "时间戳"
+
+msgid "Level"
+msgstr "级别"
+
+msgid "Module"
+msgstr "模块"
+
+msgid "Message"
+msgstr "消息"
+
+msgid "Device SN"
+msgstr "设备序列号"
+
+msgid "Model"
+msgstr "型号"
+
+msgid "Firmware"
+msgstr "固件版本"
+
+msgid "Site"
+msgstr "站点"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Last Heartbeat"
+msgstr "最近心跳"
+
+msgid "Config Version"
+msgstr "配置版本"
+
+msgid "CPU %"
+msgstr "CPU使用率"
+
+msgid "MEM %"
+msgstr "内存使用率"
+
+msgid "Clients"
+msgstr "终端数"
+
+msgid "All Sites"
+msgstr "全部站点"
+
+msgid "All Status"
+msgstr "全部状态"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Upgrading"
+msgstr "升级中"
+
+msgid "Maintenance"
+msgstr "维护中"
+
+msgid "Disconnected"
+msgstr "已断开"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "No devices found"
+msgstr "未找到设备"
+
+msgid "Device Detail: "
+msgstr "设备详情: "
+
+msgid "Device SN:"
+msgstr "设备序列号:"
+
+msgid "Model:"
+msgstr "型号:"
+
+msgid "Firmware:"
+msgstr "固件版本:"
+
+msgid "Site ID:"
+msgstr "站点ID:"
+
+msgid "Group ID:"
+msgstr "分组ID:"
+
+msgid "Status:"
+msgstr "状态:"
+
+msgid "Current Config:"
+msgstr "当前配置:"
+
+msgid "Config Version:"
+msgstr "配置版本:"
+
+msgid "Register Time:"
+msgstr "注册时间:"
+
+msgid "Last Heartbeat:"
+msgstr "最近心跳:"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Filter: "
+msgstr "过滤: "
+
+msgid "AC Manager Configuration"
+msgstr "AC管理器配置"
+
+msgid "Server Settings"
+msgstr "服务器设置"
+
+msgid "Listen Host"
+msgstr "监听地址"
+
+msgid "Listen Port"
+msgstr "监听端口"
+
+msgid "Certificate File"
+msgstr "证书文件"
+
+msgid "Private Key File"
+msgstr "私钥文件"
+
+msgid "CA Certificate"
+msgstr "CA证书"
+
+msgid "Database Settings"
+msgstr "数据库设置"
+
+msgid "Database Type"
+msgstr "数据库类型"
+
+msgid "Database Path"
+msgstr "数据库路径"
+
+msgid "Redis Settings"
+msgstr "Redis设置"
+
+msgid "Enable Redis"
+msgstr "启用Redis"
+
+msgid "Redis Host"
+msgstr "Redis主机"
+
+msgid "Redis Port"
+msgstr "Redis端口"
+
+msgid "Redis Password"
+msgstr "Redis密码"
+
+msgid "Heartbeat Settings"
+msgstr "心跳设置"
+
+msgid "Heartbeat Interval (seconds)"
+msgstr "心跳间隔(秒)"
+
+msgid "Heartbeat Timeout (seconds)"
+msgstr "心跳超时(秒)"
+
+msgid "Logging Settings"
+msgstr "日志设置"
+
+msgid "Log Level"
+msgstr "日志级别"
+
+msgid "Debug"
+msgstr "调试"
+
+msgid "Info"
+msgstr "信息"
+
+msgid "Warning"
+msgstr "警告"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Fatal"
+msgstr "致命"
+
+msgid "Log File Path"
+msgstr "日志文件路径"
+
+msgid "Max Log Size (bytes)"
+msgstr "日志最大大小(字节)"
+
+msgid "Log Rotation Count"
+msgstr "日志轮转数量"
+
+msgid "Config ID"
+msgstr "配置ID"
+
+msgid "Template Name"
+msgstr "模板名称"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Creator"
+msgstr "创建者"
+
+msgid "Created"
+msgstr "创建时间"
+
+msgid "Signature"
+msgstr "签名"
+
+msgid "SSID"
+msgstr "SSID"
+
+msgid "Radio"
+msgstr "射频"
+
+msgid "Global"
+msgstr "全局"
+
+msgid "All Types"
+msgstr "全部类型"
+
+msgid "✓ Signed"
+msgstr "✓ 已签名"
+
+msgid "✗ Unsigned"
+msgstr "✗ 未签名"
+
+msgid "No templates found"
+msgstr "未找到模板"
+
+msgid "Template Detail: "
+msgstr "模板详情: "
+
+msgid "Template Name:"
+msgstr "模板名称:"
+
+msgid "Config Content:"
+msgstr "配置内容:"
+
+msgid "User"
+msgstr "用户"
+
+msgid "Action"
+msgstr "操作"
+
+msgid "Resource"
+msgstr "资源"
+
+msgid "Result"
+msgstr "结果"
+
+msgid "Detail"
+msgstr "详情"
+
+msgid "Limit: "
+msgstr "限制: "
+
+msgid "Offset: "
+msgstr "偏移: "
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Export CSV"
+msgstr "导出CSV"
+
+msgid "No audit logs found"
+msgstr "未找到审计日志"
+
+msgid "Service %s request sent."
+msgstr "服务%s请求已发送。"
+
+msgid "Failed to %s service: %s"
+msgstr "%s服务失败: %s"
+
+msgid "Configuration saved and AC Manager restarted."
+msgstr "配置已保存并重启AC管理器。"
+
+msgid "Sync/Restart failed: "
+msgstr "同步/重启失败: "
+
+msgid "SQLite"
+msgstr "SQLite"
+
+msgid "MySQL (requires conditional compilation)"
+msgstr "MySQL(需要条件编译)"
+
+msgid "Bind address for WebSocket server"
+msgstr "WebSocket服务器绑定地址"
+
+msgid "WebSocket server port"
+msgstr "WebSocket服务器端口"
+
+msgid "TLS certificate path"
+msgstr "TLS证书路径"
+
+msgid "TLS private key path"
+msgstr "TLS私钥路径"
+
+msgid "CA certificate for client verification"
+msgstr "用于客户端验证的CA证书"
+
+msgid "SQLite is recommended for standalone mode"
+msgstr "独立部署模式推荐使用SQLite"
+
+msgid "SQLite database file path"
+msgstr "SQLite数据库文件路径"
+
+msgid "Enable for cluster or multi-site mode"
+msgstr "集群或多站点模式下启用"
+
+msgid "Leave empty for no auth"
+msgstr "留空表示无认证"
