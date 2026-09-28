@@ -301,7 +301,7 @@ jobs:
         make package/ap-manager/compile -j$(nproc) || make package/ap-manager/compile -j1 V=s
         make package/luci-app-ac-manager/compile -j$(nproc) || make package/luci-app-ac-manager/compile -j1 V=s
         make package/rpcd-mod-ac-manager/compile -j$(nproc) || make package/rpcd-mod-ac-manager/compile -j1 V=s
-        make package/luci-i18n-ac-manager-zh-cn/compile -j$(nproc) || make package/luci-i18n-ac-manager-zh-cn/compile -j1 V=s
+        # make package/luci-i18n-ac-manager-zh-cn/compile -j$(nproc) || make package/luci-i18n-ac-manager-zh-cn/compile -j1 V=s
         # 生成包索引
         make package/index
         echo "status=success" >> $GITHUB_OUTPUT
