@@ -297,7 +297,11 @@ jobs:
         echo -e "$(nproc) thread compile"
         make diffconfig
         # 只编译OpenWrt_AC_AP_WiFi下面全部软件包（精准编译，不编译全部包）
-        make package/OpenWrt_AC_AP_WiFi/compile -j$(nproc) || make package/OpenWrt_AC_AP_WiFi/compile -j1 V=s
+        make package/ac-manager/compile -j$(nproc) || make package/ac-manager/compile -j1 V=s
+        make package/ap-manager/compile -j$(nproc) || make package/ap-manager/compile -j1 V=s
+        make package/luci-app-ac-manager/compile -j$(nproc) || make package/luci-app-ac-manager/compile -j1 V=s
+        make package/rpcd-mod-ac-manager/compile -j$(nproc) || make package/rpcd-mod-ac-manager/compile -j1 V=s
+        make package/luci-i18n-ac-manager-zh-cn/compile -j$(nproc) || make package/luci-i18n-ac-manager-zh-cn/compile -j1 V=s
         # 生成包索引
         make package/index
         echo "status=success" >> $GITHUB_OUTPUT
