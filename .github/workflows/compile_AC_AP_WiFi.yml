@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 compile_AC_AP_WiFi
+name: compile_AC_AP_WiFi
 
 on:
   workflow_dispatch:
