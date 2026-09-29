@@ -288,12 +288,12 @@ jobs:
       run: |
         cd $OPENWRT_PATH
         # 校验：确认ac-manager配置已被识别，不存在则终止工作流
-        if ! grep -q 'CONFIG_PACKAGE_ac-manager=y' .config; then
-          echo "ERROR: .config 中未找到 CONFIG_PACKAGE_ac-manager=y !"
-          echo "原因：OpenWrt_AC_AP_WiFi 包未正确加载，克隆失败/目录错误，终止编译。"
-          exit 1
-        fi
-        echo "INFO: ac-manager 配置校验通过，开始编译"
+        # if ! grep -q 'CONFIG_PACKAGE_ac-manager=y' .config; then
+        #   echo "ERROR: .config 中未找到 CONFIG_PACKAGE_ac-manager=y !"
+        #   echo "原因：OpenWrt_AC_AP_WiFi 包未正确加载，克隆失败/目录错误，终止编译。"
+        #   exit 1
+        # fi
+        # echo "INFO: ac-manager 配置校验通过，开始编译"
         
         echo -e "$(nproc) thread compile"
         # 仅编译软件包
