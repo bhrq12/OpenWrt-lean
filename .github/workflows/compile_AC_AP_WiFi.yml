@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 128m Plus OpenWrt_AC_AP_WiFi
+name: compile_AC_AP_WiFi
 
 on:
   workflow_dispatch:
@@ -14,9 +14,10 @@ on:
   #   - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/immortalwrt/immortalwrt.git
-  SOURCE_BRANCH: openwrt-25.12
-  CONFIG_FILE: configs/config.config
+  SOURCE_URL: https://github.com/VIKINGYFY/immortalwrt
+  # https://github.com/bhrq12/openwrt-24.10.git
+  SOURCE_BRANCH: main
+  CONFIG_FILE: configs/ap8220.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: arm64
@@ -282,50 +283,28 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Compile Target Kernel
-      run: |
-        cd $OPENWRT_PATH
-        echo "INFO: 开始编译固件内核与target模块"
-        echo -e "$(nproc) thread compile"
-        # 只编译target（内核、模块），不组装固件
-        # 注意：内核必须先于软件包编译，kmod 类内核包依赖内核 .config，顺序不能颠倒
-        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
-
     - name: Compile Packages
       run: |
         cd $OPENWRT_PATH
         # 校验：确认ac-manager配置已被识别，不存在则终止工作流
-        # if ! grep -q 'CONFIG_PACKAGE_ac-manager=y' .config; then
-        #   echo "ERROR: .config 中未找到 CONFIG_PACKAGE_ac-manager=y !"
-        #   echo "原因：OpenWrt_AC_AP_WiFi 包未正确加载，克隆失败/目录错误，终止编译。"
-        #   exit 1
-        # fi
-        # echo "INFO: ac-manager 配置校验通过，开始编译"
+        if ! grep -q 'CONFIG_PACKAGE_ac-manager=y' .config; then
+          echo "ERROR: .config 中未找到 CONFIG_PACKAGE_ac-manager=y !"
+          echo "原因：OpenWrt_AC_AP_WiFi 包未正确加载，克隆失败/目录错误，终止编译。"
+          exit 1
+        fi
+        echo "INFO: ac-manager 配置校验通过，开始编译"
         
         echo -e "$(nproc) thread compile"
-        # 仅编译软件包
-        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
-        # 生成软件包仓库索引
+        make diffconfig
+        # 只编译OpenWrt_AC_AP_WiFi下面全部软件包（精准编译，不编译全部包）
+        make package/ac-manager/compile -j$(nproc) || make package/ac-manager/compile -j1 V=s
+        make package/ap-manager/compile -j$(nproc) || make package/ap-manager/compile -j1 V=s
+        make package/luci-app-ac-manager/compile -j$(nproc) || make package/luci-app-ac-manager/compile -j1 V=s
+        make package/rpcd-mod-ac-manager/compile -j$(nproc) || make package/rpcd-mod-ac-manager/compile -j1 V=s
+        # make package/luci-i18n-ac-manager-zh-cn/compile -j$(nproc) || make package/luci-i18n-ac-manager-zh-cn/compile -j1 V=s
+        # 生成包索引
         make package/index
-
-    - name: Generate Firmware Image
-      id: generate
-      run: |
-        cd $OPENWRT_PATH
-        echo "INFO: 开始组装固件镜像"
-        # 将自定义uci脚本嵌入固件files
-        mkdir -p files/etc/uci-defaults
-        cp $GITHUB_WORKSPACE/scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
-        # 安装包到rootfs
-        make package/install -j$(nproc) || make package/install -j1 V=s
-        # 组装固件镜像
-        make target/install -j$(nproc) || make target/install -j1 V=s
-        # 生成sha256校验文件
-        make checksum
-        # 设置输出状态，供后续步骤判断
         echo "status=success" >> $GITHUB_OUTPUT
-        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
 
     - name: Check Space Usage
@@ -344,36 +323,38 @@ jobs:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
 
-    - name: Organize Files
+    - name: Organize APK Packages
       if: steps.generate.outputs.status == 'success'
       run: |
-        cd $OPENWRT_PATH/bin/targets/*/*
+        cd $OPENWRT_PATH/bin/packages/*/*
         cat sha256sums
         cp $OPENWRT_PATH/.config build.config
-        # mv -f $OPENWRT_PATH/bin/packages/*/*/*.apk packages
-        tar -zcf Packages.tar.gz packages
+        # 收集所有编译出来的apk软件包
+        mkdir -p packages
+        find . -maxdepth 1 -name "*.apk" -exec cp {} packages/ \;
+        tar -zcf Packages-apk.tar.gz packages
         rm -rf packages feeds.buildinfo version.buildinfo
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
+        echo "PKG_PATH=$PWD" >> $GITHUB_ENV
 
-    - name: Upload Firmware To Artifact
+    - name: Upload APK Packages To Artifact
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE_PATH }}
+        name: ${{ env.SOURCE_REPO }}-apk-packages-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        path: ${{ env.PKG_PATH }}
 
-    - name: Upload Firmware To Release
+    - name: Upload APK Packages To Release
       if: steps.generate.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
       uses: ncipollo/release-action@v1
       with:
-        name: R${{ env.DATE }} for ${{ env.FIRMWARE_TAG }}
+        name: R${{ env.DATE }} APK Packages for ${{ env.FIRMWARE_TAG }}
         allowUpdates: true
         tag: ${{ env.FIRMWARE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ${{ env.FIRMWARE_PATH }}/*
+        artifacts: ${{ env.PKG_PATH }}/*
         body: |
-          **AP8220 128m Plus - OpenWrt AC+AP WiFi 统一管理系统固件**
-          * 基于 OpenWrt 25.12 源码编译，内置 AC 管理器与 AP 端管理软件包（ap-manager）
-          AC 端：AP 集中管理、配置下发、状态监控；AP 端：自动发现 AC、注册上线、加载配置
+          **OpenWrt 编译 APK 软件包发布**
+          * 基于 OpenWrt 源码编译，本次产出 APK 软件包
+          包含编译生成的apk安装包、sha256sums校验文件、编译.config配置备份
           当前使用版本:【编译前的最后一次[➦主源码](${{ env.SOURCE_URL }})更新记录】
           ${{ env.VERSION_INFO }}

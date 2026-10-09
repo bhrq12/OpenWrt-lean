@@ -6,7 +6,7 @@
 # https://github.com/P3TERX
 #===============================================
 
-name: AP8220 128m Plus OpenWrt_AC_AP_WiFi
+name: OpenWrt_AC_AP_WiFi
 
 on:
   workflow_dispatch:
@@ -14,8 +14,9 @@ on:
   #   - cron: 0 20 * * *
 
 env:
-  SOURCE_URL: https://github.com/immortalwrt/immortalwrt.git
-  SOURCE_BRANCH: openwrt-25.12
+  SOURCE_URL: https://github.com/openwrt/openwrt.git
+  # https://github.com/bhrq12/openwrt-24.10.git
+  SOURCE_BRANCH: openwrt-24.10
   CONFIG_FILE: configs/config.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
@@ -282,20 +283,10 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Compile Target Kernel
-      run: |
-        cd $OPENWRT_PATH
-        echo "INFO: 开始编译固件内核与target模块"
-        echo -e "$(nproc) thread compile"
-        # 只编译target（内核、模块），不组装固件
-        # 注意：内核必须先于软件包编译，kmod 类内核包依赖内核 .config，顺序不能颠倒
-        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
-
     - name: Compile Packages
       run: |
         cd $OPENWRT_PATH
-        # 校验：确认ac-manager配置已被识别，不存在则终止工作流
+        # # 校验：确认ac-manager配置已被识别，不存在则终止工作流
         # if ! grep -q 'CONFIG_PACKAGE_ac-manager=y' .config; then
         #   echo "ERROR: .config 中未找到 CONFIG_PACKAGE_ac-manager=y !"
         #   echo "原因：OpenWrt_AC_AP_WiFi 包未正确加载，克隆失败/目录错误，终止编译。"
@@ -308,6 +299,15 @@ jobs:
         make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
         # 生成软件包仓库索引
         make package/index
+
+    - name: Compile Target Kernel
+      run: |
+        cd $OPENWRT_PATH
+        echo "INFO: 开始编译固件内核与target模块"
+        echo -e "$(nproc) thread compile"
+        # 只编译target（内核、模块），不组装固件
+        make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
+        yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
 
     - name: Generate Firmware Image
       id: generate
@@ -373,7 +373,7 @@ jobs:
         artifacts: ${{ env.FIRMWARE_PATH }}/*
         body: |
           **AP8220 128m Plus - OpenWrt AC+AP WiFi 统一管理系统固件**
-          * 基于 OpenWrt 25.12 源码编译，内置 AC 管理器与 AP 端管理软件包（ap-manager）
+          * 基于 OpenWrt 24.10 源码编译，内置 AC 管理器与 AP 端管理软件包（ap-manager）
           AC 端：AP 集中管理、配置下发、状态监控；AP 端：自动发现 AC、注册上线、加载配置
-          当前使用版本:【编译前的最后一次[➦主源码](${{ env.SOURCE_URL }})更新记录】
+          当前使用版本:【编译前的最后一次[➦主源码](https://github.com/bhrq12/openwrt-24.10)更新记录】
           ${{ env.VERSION_INFO }}
