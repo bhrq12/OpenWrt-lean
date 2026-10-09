@@ -56,7 +56,6 @@ define Package/ap-manager/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./scripts/ap-manager.init $(1)/etc/init.d/ap-manager
 
-	$(INSTALL_DIR) $(1)/var/log/ap-manager
 endef
 
 define Package/ap-manager/postinst

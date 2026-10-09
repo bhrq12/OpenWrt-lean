@@ -8,6 +8,8 @@ USE_PROCD=1
 CONFIG=/etc/ac-manager/ac-manager.conf
 
 start_service() {
+	mkdir -p /var/lib/ac-manager /var/log/ac-manager
+
 	procd_open_instance
 	procd_set_param command /usr/sbin/ac-manager -c $CONFIG
 	procd_set_param respawn

@@ -56,8 +56,6 @@ define Package/ac-manager/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./scripts/ac-manager.init $(1)/etc/init.d/ac-manager
 
-	$(INSTALL_DIR) $(1)/var/lib/ac-manager
-	$(INSTALL_DIR) $(1)/var/log/ac-manager
 endef
 
 define Package/ac-manager/postinst
