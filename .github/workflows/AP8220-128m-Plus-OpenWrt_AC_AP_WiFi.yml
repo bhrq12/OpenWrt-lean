@@ -16,7 +16,7 @@ on:
 env:
   SOURCE_URL: https://github.com/immortalwrt/immortalwrt.git
   SOURCE_BRANCH: openwrt-25.12
-  CONFIG_FILE: configs/config.config
+  CONFIG_FILE: configs/wifi.config
   DIY_SCRIPT: diy-script-1.sh
   TOOLCHAIN_TAG: Toolchain
   CLASH_KERNEL: arm64
